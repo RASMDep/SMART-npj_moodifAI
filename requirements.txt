@@ -1,0 +1,14 @@
+pip==21.0.1
+numpy==1.19.4
+scipy==1.5.4
+scikit-learn==0.23.2
+joblib==0.17.0
+torch==1.7.1
+torchaudio==0.7.2
+torchvision==0.8.2
+tqdm==4.56.0
+tensorboard==2.4.1
+biosppy==0.6.1
+neurokit2==0.1.1
+pyentrp==0.7.1
+PyWavelets==1.1.1
