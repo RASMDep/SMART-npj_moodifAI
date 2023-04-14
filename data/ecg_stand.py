@@ -45,11 +45,11 @@ def get_data(args):
     fold_test = args.fold_test
     n_kfold = args.n_kfold
 
-    #dir = "/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/01_Confidential_Data/MoodDetection/"
-    dir = "/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection/"
+    dir = "/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/01_Confidential_Data/MoodDetection/"
+    #dir = "/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection/"
     # try with data on a pickle file, advantage load once
     # open the pickle file in read mode
-    with open(os.path.join(dir,"4hecgBaslineRemoval_longacc_and_imq.pickle"), "rb") as f:
+    with open(os.path.join(dir,"8h_ecg_acc_gps_and_imq.pickle"), "rb") as f:
         # load the data from the pickle file using pickle.load()
         data = pickle.load(f)
 
@@ -60,6 +60,8 @@ def get_data(args):
     data_training["acc_x"] = data["acc_x"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True)[data["uid"]!=subject].reset_index( drop=True)
     data_training["acc_y"] = data["acc_y"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True)[data["uid"]!=subject].reset_index( drop=True)
     data_training["acc_z"] = data["acc_z"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True)[data["uid"]!=subject].reset_index( drop=True)  
+    data_training["gps_lat"] = data["gps_lat"][data["uid"]!=subject].reset_index( drop=True)
+    data_training["gps_long"] = data["gps_long"][data["uid"]!=subject].reset_index( drop=True)
     data_training["y"] = data["y"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index(drop=True)
     data_training["daypart"] = data["daypart"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index(drop=True)
 
@@ -73,6 +75,8 @@ def get_data(args):
     data_test["acc_x"] = data["acc_x"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
     data_test["acc_y"] = data["acc_y"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
     data_test["acc_z"] = data["acc_z"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
+    data_test["gps_lat"] = data["gps_lat"][data["uid"]==subject].reset_index( drop=True)
+    data_test["gps_long"] = data["gps_long"][data["uid"]==subject].reset_index( drop=True)
     data_test["y"] = data["y"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
     data_test["daypart"] = data["daypart"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
     test_idx =  np.asarray(data_test["y"].index)#
@@ -94,14 +98,14 @@ class ecgDataset(torch.utils.data.Dataset):
         self.acc_x_data = files['acc_x'].copy()
         self.acc_y_data = files['acc_y'].copy()
         self.acc_z_data = files['acc_z'].copy()
+        self.gps_lat_data = files['gps_lat'].copy()
+        self.gps_long_data = files['gps_long'].copy()
         self.y_data = files['y'].copy()
         self.daypart = files['daypart'].copy()
 
-
-
     def __getitem__(self, index):
 
-        hours = 1   
+        hours = 8   
         len_ecg = 128*3600*hours
         len_acc = 5*3600*hours
 
@@ -120,31 +124,52 @@ class ecgDataset(torch.utils.data.Dataset):
        
 
         #arousal
-        arosual = np.zeros((3),dtype=float)
+        #arosual = np.zeros((3),dtype=float)
         #if self.y_data[index][0] >= 4 and np.abs(self.y_data[index][2]-6)<=2:
             #self.y_data[index][2] = np.abs(self.y_data[index][2]-6)
             #print("wrong label")
-        arval = (self.y_data[index][0] + np.abs(self.y_data[index][2]-6))/2
-        if arval<3:
-            arosual[0]=1
-        elif arval==3:
-            arosual[1]=1
-        elif arval>3:
-            arosual[2]=1
+        #arval = (self.y_data[index][0] + np.abs(self.y_data[index][2]-6))/2
+        arval1 = self.y_data[index][0] 
+        arval2 = np.abs(self.y_data[index][2]-6)
+
+        arousal1 = np.zeros((3),dtype=float)
+        arousal2 = np.zeros((3),dtype=float)
+
+        if arval1<2:
+            arousal1[0]=1
+        elif arval1>4:
+            arousal1[2]=1
         else:
-            arosual[1]=1
+            arousal1[1]=1
+
+        if arval2<2:
+            arousal2[0]=1
+        elif arval2>4:
+            arousal2[2]=1
+        else:
+            arousal2[1]=1
 
         #valence
-        valence = np.zeros((3),dtype=float)
-        vaval = (self.y_data[index][1] + np.abs(self.y_data[index][3]-6))/2
-        if vaval<3:
-            valence[0]=1
-        elif vaval==3:
-            valence[1]=1
-        elif vaval>3:
-            valence[2]=1
+        valence1 = np.zeros((3),dtype=float)
+        valence2 = np.zeros((3),dtype=float)
+        #vaval = (self.y_data[index][1] + np.abs(self.y_data[index][3]-6))/2
+        
+        vaval1 = self.y_data[index][1] 
+        vaval2 = np.abs(self.y_data[index][3]-6)
+
+        if vaval1<2:
+            valence1[0]=1
+        elif vaval1>4:
+            valence1[2]=1
         else:
-            valence[1]=1
+            valence1[1]=1
+
+        if vaval2<2:
+            valence2[0]=1
+        elif vaval2>4:
+            valence2[2]=1
+        else:
+            valence2[1]=1
 
 
         #time of the day
@@ -157,9 +182,11 @@ class ecgDataset(torch.utils.data.Dataset):
             daypart[2]=1
         
         x = torch.from_numpy(x).float()
-        arosual = torch.from_numpy(arosual).float()
-        valence = torch.from_numpy(valence).float()
+        arousal1 = torch.from_numpy(arousal1).float()
+        valence1 = torch.from_numpy(valence1).float()
         daypart = torch.from_numpy(daypart).float()
+        arousal2 = torch.from_numpy(arousal2).float()
+        valence2 = torch.from_numpy(valence2).float()
 
         mask = torch.ones((1,1,1))
 
@@ -169,8 +196,10 @@ class ecgDataset(torch.utils.data.Dataset):
   
         sample = {
             'x': x,
-            'label_arosual':arosual,
-            'label_valence':valence,
+            'label_arosual1':arousal1,
+            'label_valence1':valence1,
+            'label_arosual2':arousal2,
+            'label_valence2':valence2,
             'label_daypart':daypart,
             'covariates':0,
             'name': hea_file_name,
