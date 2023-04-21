@@ -1,9 +1,9 @@
 add_bias:False
-batch_size:10
+batch_size:6
 covariates_save_path:covariates/
 data:ecg_data
 data_path:/home/gdapoian/CardioSleep
-epochs:30
+epochs:1
 experiment_folder:models/out/
 fold_test:0
 gamma_neg:5
@@ -13,10 +13,10 @@ logstep_train:10
 loss:ASL
 lr:0.001
 mode:train
-model:Conv1dNet
+model:twoConv1dNet_MLP
 model_filename:baseline
 momentum:0.9
-n_channels:4
+n_channels:6
 n_covariates:0
 n_kfold:5
 noise:0.1

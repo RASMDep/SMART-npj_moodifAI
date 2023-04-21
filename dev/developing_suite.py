@@ -159,7 +159,7 @@ parser.add_argument(
     "--model",
     type=str,
     default='LeNet',
-    choices=['Conv1dNet', 'LeNet', 'Conv1dNet_10s', 'GRU', 'LSTM', 'TCN', 'ResNet1d'],
+    choices=['Conv1dNet', 'LeNet', 'Conv1dNet_10s', 'GRU', 'LSTM', 'TCN', 'ResNet1d', 'twoConv1dNet_MLP'],
     help='Model to use [default=%(default)s].')
 parser.add_argument("--n-channels",
                     type=int,
@@ -333,21 +333,17 @@ class DevelopingSuite(object):
         with tqdm(self.train_dataloader, leave=False) as inner_tnr:
             for en, sample in enumerate(inner_tnr):
 
-                y_arosual1 = sample['label_arosual1'].to(self.device)
-                y_valence1 = sample['label_valence1'].to(self.device)
-                y_arosual2 = sample['label_arosual2'].to(self.device)
-                y_valence2 = sample['label_valence2'].to(self.device)
+                y_arousal = sample['label_arosual'].to(self.device)
+                y_valence = sample['label_valence'].to(self.device)
                 y_daypart = sample['label_daypart'].to(self.device)
 
                 self.optimizer.zero_grad()
                 
-                pred_arousal1, pred_valence1, pred_daypart, pred_arousal2, pred_valence2 = self.model(sample)#.squeeze()
+                pred_arousal, pred_valence, pred_daypart = self.model(sample)#.squeeze()
 
-                #loss =  #self.model.loss(pred_arousal1,y_arosual1) +
-                loss = self.model.loss(pred_valence1,y_valence1) 
-                +  self.model.loss(pred_daypart,y_daypart) 
-                #+ self.model.loss(pred_arousal2,y_arosual2)  
-                + self.model.loss(pred_valence2,y_valence2)
+                loss =  self.model.loss(pred_arousal,y_arousal) 
+                + self.model.loss(pred_valence,y_valence) 
+                + self.model.loss(pred_daypart,y_daypart) 
                 
                 # Backward pass
                 loss.backward()
@@ -404,24 +400,18 @@ class DevelopingSuite(object):
         self.model.eval()
         for sample in dataloader:
             with torch.no_grad():
-                x = sample["x"]
-                arousal1 = sample["label_arosual1"]
-                valence1 = sample["label_valence1"]
-                arousal2 = sample["label_arosual2"]
-                valence2 = sample["label_valence2"]
+                x1 = sample["x1"]
+                arousal = sample["label_arosual"]
+                valence = sample["label_valence"]
                 daypart = sample["label_daypart"]
 
-                arousal1 = arousal1.to(self.device)
-                valence1 = valence1.to(self.device)
-                arousal2 = arousal2.to(self.device)
-                valence2 = valence2.to(self.device)
+                arousal = arousal.to(self.device)
+                valence = valence.to(self.device)
                 daypart = daypart.to(self.device)
-                batch_size = x.size(0)
-                pred_arousal1,pred_valence1,pred_daypart, pred_arousal2, pred_valence2 = self.model(sample)
-                pred_arousal1 = pred_arousal1.to(self.device) 
-                pred_valence1 = pred_valence1.to(self.device) 
-                pred_arousal2 = pred_arousal2.to(self.device) 
-                pred_valence2 = pred_valence2.to(self.device) 
+                batch_size = x1.size(0)
+                pred_arousal,pred_valence,pred_daypart = self.model(sample)
+                pred_arousal = pred_arousal.to(self.device) 
+                pred_valence = pred_valence.to(self.device) 
                 pred_daypart = pred_daypart.to(self.device) 
 
                 #y_pred_binary_arousal = 0.5 * (torch.sign(torch.sigmoid(pred_arousal) - 0.5) + 1).to(self.device)
@@ -434,11 +424,10 @@ class DevelopingSuite(object):
                 total_dataset_size += batch_size
                 #total_loss += (self.model.loss(pred_arousal1,arousal1)  
                 #+ 
-                total_loss += (self.model.loss(pred_valence1,valence1) 
+                total_loss += (self.model.loss(pred_valence,valence) 
                 +  self.model.loss(pred_daypart,daypart) 
-                #+ self.model.loss(pred_arousal2,arousal2)  
-                + self.model.loss(pred_valence2,valence2)
-                )* batch_size #+  self.model.loss(pred_valence,valence))* batch_size
+                + self.model.loss(pred_arousal,arousal)  
+                                )* batch_size #+  self.model.loss(pred_valence,valence))* batch_size
 
         total_accuracy += 0 #compute_total_matches(y, pred_y)
 
@@ -496,27 +485,19 @@ class DevelopingSuite(object):
         pos = torch.zeros(1).to(
             self.device)  # <-- changed so it is automatic
 
-        outputs_all_arousal1 = torch.zeros(0).to(
+        outputs_all_arousal = torch.zeros(0).to(
             self.device)  # <-- changed so it is automatic
-        outputs_all_valence1 = torch.zeros(0).to(
+        outputs_all_valence = torch.zeros(0).to(
             self.device)  # <-- changed so it is automatic
         outputs_all_daypart = torch.zeros(0).to(
             self.device)  # <-- changed so it is automatic
-        outputs_all_arousal2 = torch.zeros(0).to(
-            self.device)  # <-- changed so it is automatic
-        outputs_all_valence2 = torch.zeros(0).to(
-            self.device)  # <-- changed so it is automatic
+      
 
-
-        targets_all_arousal1 = torch.zeros(0).to(
+        targets_all_arousal = torch.zeros(0).to(
             self.device)  # <-- changed so it is automatic
-        targets_all_valence1 = torch.zeros(0).to(
+        targets_all_valence = torch.zeros(0).to(
                     self.device)  # <-- changed so it is automatic
         targets_all_daypart = torch.zeros(0).to(
-                    self.device)  # <-- changed so it is automatic
-        targets_all_arousal2 = torch.zeros(0).to(
-            self.device)  # <-- changed so it is automatic
-        targets_all_valence2 = torch.zeros(0).to(
                     self.device)  # <-- changed so it is automatic
         
         tot = 0
@@ -531,38 +512,31 @@ class DevelopingSuite(object):
 
         with torch.no_grad():
             for sample in tqdm(self.test_dataloader):
-                x_t = sample["x"]
-                y_t_arosual1 = sample["label_arosual1"].to(self.device)
-                y_t_valence1 = sample["label_valence1"].to(self.device)
+                x_t = sample["x1"]
+                y_t_arousal = sample["label_arosual"].to(self.device)
+                y_t_valence = sample["label_valence"].to(self.device)
                 y_t_daypart = sample["label_daypart"].to(self.device)
-                y_t_arosual2 = sample["label_arosual2"].to(self.device)
-                y_t_valence2 = sample["label_valence2"].to(self.device)
-
-                tot = tot + x_t.shape[0]
-                y_pred_arousal1, y_pred_valence1, y_pred_daypart, y_pred_arousal2, y_pred_valence2 = self.model(sample)
-                y_pred_binary_arousal1 = torch.argmax(torch.sigmoid(y_pred_arousal1), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
-                y_pred_binary_valence1 = torch.argmax(torch.sigmoid(y_pred_valence1), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
-                y_pred_binary_daypart = torch.argmax(torch.sigmoid(y_pred_daypart), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
-                y_pred_binary_arousal2 = torch.argmax(torch.sigmoid(y_pred_arousal2), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
-                y_pred_binary_valence2 = torch.argmax(torch.sigmoid(y_pred_valence2), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
-
-                outputs_all_arousal1 = torch.cat((outputs_all_arousal1, y_pred_binary_arousal1), 0)
-                outputs_all_valence1 = torch.cat((outputs_all_valence1, y_pred_binary_valence1), 0)
-                outputs_all_daypart = torch.cat((outputs_all_daypart, y_pred_binary_daypart), 0)
-                outputs_all_arousal2 = torch.cat((outputs_all_arousal2, y_pred_binary_arousal2), 0)
-                outputs_all_valence2 = torch.cat((outputs_all_valence2, y_pred_binary_valence2), 0)
                 
-                targets_all_arousal1 = torch.cat((targets_all_arousal1, y_t_arosual1,), 0)
-                targets_all_valence1 = torch.cat((targets_all_valence1, y_t_valence1,), 0)
-                targets_all_arousal2 = torch.cat((targets_all_arousal2, y_t_arosual2,), 0)
-                targets_all_valence2 = torch.cat((targets_all_valence2, y_t_valence2,), 0)
+                tot = tot + x_t.shape[0]
+                y_pred_arousal, y_pred_valence, y_pred_daypart = self.model(sample)
+                y_pred_binary_arousal = torch.argmax(torch.sigmoid(y_pred_arousal), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
+                y_pred_binary_valence = torch.argmax(torch.sigmoid(y_pred_valence), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
+                y_pred_binary_daypart = torch.argmax(torch.sigmoid(y_pred_daypart), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
+        
+                outputs_all_arousal = torch.cat((outputs_all_arousal, y_pred_binary_arousal), 0)
+                outputs_all_valence = torch.cat((outputs_all_valence, y_pred_binary_valence), 0)
+                outputs_all_daypart = torch.cat((outputs_all_daypart, y_pred_binary_daypart), 0)
+        
+                
+                targets_all_arousal = torch.cat((targets_all_arousal, y_t_arousal,), 0)
+                targets_all_valence = torch.cat((targets_all_valence, y_t_valence,), 0)
                 targets_all_daypart = torch.cat((targets_all_daypart, y_t_daypart,), 0)
 
                 #target = torch.argmax(torch.sigmoid(y_t_arosual), dim=1 ).float()
                 #acc = acc + (torch.sum(y_pred_binary_arousal == target)) 
                 #pos = pos + self.args.batch_size #torch.sum(y_t, dim=0)
 
-        return outputs_all_arousal1,outputs_all_valence1,outputs_all_daypart,targets_all_arousal1,targets_all_valence1,targets_all_daypart, outputs_all_arousal2,outputs_all_valence2,targets_all_arousal2,targets_all_valence2
+        return outputs_all_arousal,outputs_all_valence,outputs_all_daypart,targets_all_arousal,targets_all_valence,targets_all_daypart
 
 
 if __name__ == '__main__':

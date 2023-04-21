@@ -14,7 +14,7 @@ str_args = [
         "--less-features",
         "--n-channels=6",
         "--data=ecg_data",
-        "--model=Conv1dNet",
+        "--model=twoConv1dNet_MLP",
         "--num-class=3",
         "--n-kfold=5",
         "--test-subject=S008",
@@ -29,9 +29,9 @@ str_args = [
         "--save-model=best",
         "--mode=train",
         "--num-processes=-1",
-        "--epochs=30",
+        "--epochs=1",
         "--scheduler=exp",  # feature_branch: no
-        "--batch-size=10",  # feature_branch: 16
+        "--batch-size=6",  # feature_branch: 16
         "--logstep-train=10",
         "--optimizer=adam",
         "--lr=0.001",
@@ -46,22 +46,19 @@ developingSuite.train_and_eval()
 
 noise = 0
 print("results for noise:" + str(noise))
-outputs_all_arousal1,outputs_all_valence1,_,targets_all_arousal1,targets_all_valence1,_, outputs_all_arousal2,outputs_all_valence2,targets_all_arousal2,targets_all_valence2 = developingSuite.eval_model_stats()
+outputs_all_arousal,outputs_all_valence,_,targets_all_arousal,targets_all_valence,_= developingSuite.eval_model_stats()
 
 
 print("arosual")
-arosual1 = torch.argmax(torch.sigmoid(targets_all_arousal1), dim=1 ).float()
-print(skm.classification_report(arosual1.cpu(),outputs_all_arousal1.cpu()))
-print(skm.confusion_matrix(arosual1.cpu(),outputs_all_arousal1.cpu()))
+arosual = torch.argmax(torch.sigmoid(targets_all_arousal), dim=1 ).float()
+print(skm.classification_report(arosual.cpu(),outputs_all_arousal.cpu()))
+print(skm.confusion_matrix(arosual.cpu(),outputs_all_arousal.cpu()))
 
-arosual2 = torch.argmax(torch.sigmoid(targets_all_arousal2), dim=1 ).float()
-print(skm.classification_report(arosual2.cpu(),outputs_all_arousal2.cpu()))
-print(skm.confusion_matrix(arosual2.cpu(),outputs_all_arousal2.cpu()))
 
-#print("valence")
-#valence1 = torch.argmax(torch.sigmoid(targets_all_valence1), dim=1 ).float()
-#print(skm.classification_report(valence1.cpu(),outputs_all_valence1.cpu()))
-#print(skm.confusion_matrix(valence1.cpu(),outputs_all_valence1.cpu()))
+print("valence")
+valence = torch.argmax(torch.sigmoid(targets_all_valence), dim=1 ).float()
+print(skm.classification_report(valence.cpu(),outputs_all_valence.cpu()))
+print(skm.confusion_matrix(valence.cpu(),outputs_all_valence.cpu()))
 
 #valence2 = torch.argmax(torch.sigmoid(targets_all_valence2), dim=1 ).float()
 #print(skm.classification_report(valence2.cpu(),outputs_all_valence2.cpu()))
