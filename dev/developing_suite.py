@@ -341,9 +341,11 @@ class DevelopingSuite(object):
                 
                 pred_arousal, pred_valence, pred_daypart = self.model(sample)#.squeeze()
 
-                loss =  self.model.loss(pred_arousal,y_arousal) 
-                + self.model.loss(pred_valence,y_valence) 
-                + self.model.loss(pred_daypart,y_daypart) 
+                loss = self.model.loss(pred_valence,y_valence) 
+
+                #self.model.loss(pred_arousal,y_arousal) 
+                #+ 
+                #+ self.model.loss(pred_daypart,y_daypart) 
                 
                 # Backward pass
                 loss.backward()
@@ -424,9 +426,11 @@ class DevelopingSuite(object):
                 total_dataset_size += batch_size
                 #total_loss += (self.model.loss(pred_arousal1,arousal1)  
                 #+ 
-                total_loss += (self.model.loss(pred_valence,valence) 
-                +  self.model.loss(pred_daypart,daypart) 
-                + self.model.loss(pred_arousal,arousal)  
+                total_loss += (
+                #self.model.loss(pred_arousal,arousal) 
+                #+  self.model.loss(pred_daypart,daypart) 
+                #+ 
+                self.model.loss(pred_valence,valence)  
                                 )* batch_size #+  self.model.loss(pred_valence,valence))* batch_size
 
         total_accuracy += 0 #compute_total_matches(y, pred_y)

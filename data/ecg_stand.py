@@ -49,7 +49,7 @@ def get_data(args):
     #dir = "/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection/"
     # try with data on a pickle file, advantage load once
     # open the pickle file in read mode
-    with open(os.path.join(dir,"4hlongecg_longacc_24hr_24hgps_and_imq.pickle"), "rb") as f:
+    with open(os.path.join(dir,"4hlongecg_longacc_24hr_24hgps_and_imq_complete.pickle"), "rb") as f:
         # load the data from the pickle file using pickle.load()
         data = pickle.load(f)
 
@@ -62,7 +62,7 @@ def get_data(args):
     data_training["acc_z"] = data["acc_z"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True)[data["uid"]!=subject].reset_index( drop=True)  
     data_training["gps_lat"] = data["gps_lat"][data["uid"]!=subject].reset_index( drop=True)
     data_training["gps_long"] = data["gps_long"][data["uid"]!=subject].reset_index( drop=True)
-    data_training["gps_time"] = data["gps_time"][data["uid"]!=subject].reset_index( drop=True)
+    data_training["hr"] = data["hr"][data["uid"]!=subject].reset_index( drop=True)
     data_training["y"] = data["y"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index(drop=True)
     data_training["daypart"] = data["daypart"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index(drop=True)
 
@@ -78,9 +78,9 @@ def get_data(args):
     data_test["acc_z"] = data["acc_z"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
     data_test["gps_lat"] = data["gps_lat"][data["uid"]==subject].reset_index( drop=True)
     data_test["gps_long"] = data["gps_long"][data["uid"]==subject].reset_index( drop=True)
+    data_test["hr"] = data["hr"][data["uid"]==subject].reset_index( drop=True)
     data_test["y"] = data["y"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
     data_test["daypart"] = data["daypart"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
-    data_test["gps_time"] = data["gps_time"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
 
     test_idx =  np.asarray(data_test["y"].index)#
 
@@ -103,7 +103,7 @@ class ecgDataset(torch.utils.data.Dataset):
         self.acc_z_data = files['acc_z'].copy()
         self.gps_lat_data = files['gps_lat'].copy()
         self.gps_long_data = files['gps_long'].copy()
-        self.gps_time = files['gps_time'].copy()
+        self.hr_data = files['hr'].copy()
         self.y_data = files['y'].copy()
         self.daypart = files['daypart'].copy()
 
@@ -126,10 +126,10 @@ class ecgDataset(torch.utils.data.Dataset):
         if random.random()<0.5:
             x1[0,:] = -x1[0,:]
         
-        x2 = np.zeros((3,max([len(a) for a in self.gps_lat_data])))
+        x2 = np.zeros((3,max([max([len(a) for a in self.gps_lat_data]),max([len(a) for a in self.hr_data])])))
         x2[0,0:len(self.gps_lat_data[index])]=self.gps_lat_data[index]
         x2[1,0:len(self.gps_long_data[index])]=self.gps_long_data[index]
-        x2[2,0:len(self.gps_time[index])]=self.gps_time[index]
+        x2[2,0:len(self.hr_data[index])]=self.hr_data[index]
                        
 
         #AROUSAL
@@ -139,9 +139,9 @@ class ecgDataset(torch.utils.data.Dataset):
             #print("wrong label")
         arval = (self.y_data[index][0] + np.abs(self.y_data[index][2]-6))/2
        
-        if arval<2:
+        if arval<3:
             arousal[0]=1
-        elif arval>4:
+        elif arval>3:
             arousal[2]=1
         else:
             arousal[1]=1
@@ -150,9 +150,9 @@ class ecgDataset(torch.utils.data.Dataset):
         valence = np.zeros((3),dtype=float)
         vaval = (self.y_data[index][1] + np.abs(self.y_data[index][3]-6))/2
         
-        if vaval<2:
+        if vaval<3:
             valence[0]=1
-        elif vaval>4:
+        elif vaval>3:
             valence[2]=1
         else:
             valence[1]=1

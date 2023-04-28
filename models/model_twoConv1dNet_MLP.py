@@ -46,7 +46,7 @@ class twoConv1dNet_MLP(torch.nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.in_size1 = 4 #args.n_channels
-        self.in_size2 = 4 #args.n_channels
+        self.in_size2 = 3 #args.n_channels
         self.n_out_class = args.num_class
         self.n_feat = args.n_covariates
         self.less_features = args.less_features
