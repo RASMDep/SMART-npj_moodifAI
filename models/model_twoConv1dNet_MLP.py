@@ -123,28 +123,53 @@ class twoConv1dNet_MLP(torch.nn.Module):
         
         """
         
-        x1 = sample["x1"]
-        x1= x1.to(self.device)
-        x_ext1 = torch.zeros((x1.shape[0], x1.shape[1], int(np.ceil(x1.shape[2]/256))*256)).to(self.device)
-        x_ext1[:,:, 0:x1.shape[2]] = x1
+        x1_t = sample["x1_t"]
+        x1_t= x1_t.to(self.device)
+        x_ext1_t = torch.zeros((x1_t.shape[0], x1_t.shape[1], int(np.ceil(x1_t.shape[2]/256))*256)).to(self.device)
+        x_ext1_t[:,:, 0:x1_t.shape[2]] = x1_t
 
         ### divide in 5 minutes, needed only when using the GRU
-        batch_size, num_channels, signal_length = x_ext1.size()# GRU 
-        x_ext1 = x_ext1.view(batch_size * (signal_length // 38400), num_channels, 38400)# GRU 
+        batch_size, num_channels, signal_length = x_ext1_t.size()# GRU 
+        x_ext1_t = x_ext1_t.view(batch_size * (signal_length // 38400), num_channels, 38400)# GRU 
+
+        x1_ = sample["x1_"]
+        x1_= x1_.to(self.device)
+        x_ext1_ = torch.zeros((x1_.shape[0], x1_.shape[1], int(np.ceil(x1_.shape[2]/256))*256)).to(self.device)
+        x_ext1_[:,:, 0:x1_.shape[2]] = x1_
+
+        ### divide in 5 minutes, needed only when using the GRU
+        batch_size, num_channels, signal_length = x_ext1_.size()# GRU 
+        x_ext1_ = x_ext1_.view(batch_size * (signal_length // 38400), num_channels, 38400)# GRU 
+
+        x2_t = torch.nan_to_num(sample["x2_t"])
+        x2_t= x2_t.to(self.device)
+        x_ext2_t = torch.zeros((x2_t.shape[0], x2_t.shape[1],x2_t.shape[2])).to(self.device)
+        x_ext2_t[:,:, 0:x2_t.shape[2]] = x2_t
+
+        x2_ = torch.nan_to_num(sample["x2_"])
+        x2_= x2_.to(self.device)
+        x_ext2_ = torch.zeros((x2_.shape[0], x2_.shape[1],x2_.shape[2])).to(self.device)
+        x_ext2_[:,:, 0:x2_.shape[2]] = x2_
 
 
-        x2 = torch.nan_to_num(sample["x2"])
-        x2= x2.to(self.device)
-        x_ext2 = torch.zeros((x2.shape[0], x2.shape[1],x2.shape[2])).to(self.device)
-        x_ext2[:,:, 0:x2.shape[2]] = x2
+        z1_t = self.feature_extractor1(x_ext1_t)
+        z1_t = z1_t.view(batch_size, -1, 256, ) # GRU
 
-  
-        z1 = self.feature_extractor1(x_ext1)
-        z1 = z1.view(batch_size, -1, 256, ) # GRU
+        z1_ = self.feature_extractor1(x_ext1_)
+        z1_ = z1_.view(batch_size, -1, 256, ) # GRU
+
+        z1 = z1_t - z1_
+        
         z1 = self.gru1(z1)                   # GRU              
         
-        z2 = self.feature_extractor2(x_ext2)
-        z2 = z2.view(batch_size, -1, 128, ) # GRU
+        z2_t = self.feature_extractor2(x_ext2_t)
+        z2_t = z2_t.view(batch_size, -1, 128, ) # GRU
+        
+        z2_ = self.feature_extractor2(x_ext2_)
+        z2_ = z2_.view(batch_size, -1, 128, ) # GRU
+
+        z2 = z2_t - z2_
+        
         z2 = self.gru2(z2)                   # GRU 
 
         z = torch.cat((z1,z2),1)             
