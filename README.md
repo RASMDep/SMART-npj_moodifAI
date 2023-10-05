@@ -1,2 +1,3 @@
 
-# :rage: :pensive:  MoodifAI :worried: :smiley:
+![](logo/moodifAI.jpg.jpg)
+# MoodifAI 
