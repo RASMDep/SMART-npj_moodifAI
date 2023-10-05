@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from models import model_GRU, model_Conv1dNet, model_Conv1dNetSegments, model_LSTM, model_TCN, model_ResNet
+from models import model_GRU, model_Conv1dNet, model_Conv1dNetSegments, model_LSTM, model_TCN, model_ResNet, model_twoConv1dNet_MLP 
 
 def get_model(args,data=None):
 
@@ -10,6 +10,8 @@ def get_model(args,data=None):
         model = model_Conv1dNet.Conv1dNet(args)
     elif args.model == 'Conv1dNetSegments': 
         model = model_Conv1dNetSegments.Conv1dNetSegments(args)
+    elif args.model == 'twoConv1dNet_MLP': 
+        model = model_twoConv1dNet_MLP.twoConv1dNet_MLP(args)
     elif args.model == 'GRU': 
         model = model_GRU.GRU(args)
     elif args.model == 'LSTM': 

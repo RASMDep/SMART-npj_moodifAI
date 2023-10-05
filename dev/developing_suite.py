@@ -159,7 +159,7 @@ parser.add_argument(
     "--model",
     type=str,
     default='LeNet',
-    choices=['Conv1dNet', 'LeNet', 'Conv1dNet_10s', 'GRU', 'LSTM', 'TCN', 'ResNet1d'],
+    choices=['Conv1dNet', 'LeNet', 'Conv1dNet_10s', 'GRU', 'LSTM', 'TCN', 'ResNet1d', 'twoConv1dNet_MLP'],
     help='Model to use [default=%(default)s].')
 parser.add_argument("--n-channels",
                     type=int,
@@ -224,7 +224,7 @@ class DevelopingSuite(object):
                                            num_workers=args.num_workers,
                                            drop_last=True,
                                            shuffle=True)
-        self.val_dataloader = DataLoader(self.data_val,
+        self.val_dataloader = DataLoader(self.data_train,
                                          batch_size=args.batch_size,
                                          num_workers=args.num_workers)
 
@@ -298,8 +298,6 @@ class DevelopingSuite(object):
                 accuracy=self.val_stats["validation_accuracy"])
 
             for n, self.epoch in enumerate(tnr):
-
-                
                
                 self.training(tnr)
 
@@ -335,13 +333,11 @@ class DevelopingSuite(object):
         with tqdm(self.train_dataloader, leave=False) as inner_tnr:
             for en, sample in enumerate(inner_tnr):
 
-                y_arosual = sample['label_arosual'].to(self.device)
-                y_valence = sample['label_valence'].to(self.device)
-                y_daypart = sample['label_daypart'].to(self.device)
+                if len(sample['x1_t'])>0:
 
-                self.optimizer.zero_grad()
-                
-                pred_arousal, pred_valence, pred_daypart = self.model(sample)#.squeeze()
+                    y_arousal = sample['label_arosual'].to(self.device)
+                    y_valence = sample['label_valence'].to(self.device)
+                    y_daypart = sample['label_daypart'].to(self.device)
 
                 loss =  self.model.loss(pred_arousal,y_arosual) #+ self.model.loss(pred_valence,y_valence) 
                 
@@ -349,40 +345,50 @@ class DevelopingSuite(object):
                 loss.backward()
                 self.optimizer.step()
 
-                accumulated_loss += loss.item()
+                    loss = self.model.loss(pred_valence,y_valence) 
 
-                self.iter += 1
+                    #self.model.loss(pred_arousal,y_arousal) 
+                    #+ 
+                    #+ self.model.loss(pred_daypart,y_daypart) 
+                    
+                    # Backward pass
+                    loss.backward()
+                    self.optimizer.step()
 
-                # adjust learning rate
-                if self.scheduler is not None and self.args.scheduler_step == "iter":
-                    self.scheduler.step()
-                    self.writer.add_scalar('log_lr',
-                                           np.log10(self.scheduler.get_lr()),
-                                           self.iter)
+                    accumulated_loss += loss.item()
 
-                # log progress
-                if (en + 1) % self.args.logstep_train == 0:
-                    self.train_stats[
-                        'train_loss'] = accumulated_loss / self.args.logstep_train
-                    func_eval = accumulated_func_eval / (
-                        self.args.logstep_train)
-                    accumulated_loss, accumulated_func_eval = 0., 0.
-                    inner_tnr.set_postfix(
-                        training_loss=self.train_stats['train_loss'])
-                    if tnr is not None:
-                        tnr.set_postfix(
-                            training_loss=self.train_stats['train_loss'],
-                            best_validation_loss=self.
-                            val_stats["best_validation_loss"],
-                            validation_loss=self.val_stats["validation_loss"],
-                            accuracy=self.val_stats["validation_accuracy"])
+                    self.iter += 1
 
-                    self.writer.add_scalar('training/training loss',
-                                           self.train_stats['train_loss'],
-                                           self.iter)
-                    # TODO: this is not computed
-                    #  self.writer.add_scalar('training/func_eval', func_eval,
-                    #  self.iter)
+                    # adjust learning rate
+                    if self.scheduler is not None and self.args.scheduler_step == "iter":
+                        self.scheduler.step()
+                        self.writer.add_scalar('log_lr',
+                                            np.log10(self.scheduler.get_lr()),
+                                            self.iter)
+
+                    # log progress
+                    if (en + 1) % self.args.logstep_train == 0:
+                        self.train_stats[
+                            'train_loss'] = accumulated_loss / self.args.logstep_train
+                        func_eval = accumulated_func_eval / (
+                            self.args.logstep_train)
+                        accumulated_loss, accumulated_func_eval = 0., 0.
+                        inner_tnr.set_postfix(
+                            training_loss=self.train_stats['train_loss'])
+                        if tnr is not None:
+                            tnr.set_postfix(
+                                training_loss=self.train_stats['train_loss'],
+                                best_validation_loss=self.
+                                val_stats["best_validation_loss"],
+                                validation_loss=self.val_stats["validation_loss"],
+                                accuracy=self.val_stats["validation_accuracy"])
+
+                        self.writer.add_scalar('training/training loss',
+                                            self.train_stats['train_loss'],
+                                            self.iter)
+                        # TODO: this is not computed
+                        #  self.writer.add_scalar('training/func_eval', func_eval,
+                        #  self.iter)
         
 
     def validate(self, tnr=None, save=True):
@@ -399,55 +405,56 @@ class DevelopingSuite(object):
         dataloader = self.val_dataloader
         self.model.eval()
         for sample in dataloader:
-            with torch.no_grad():
-                x = sample["x"]
-                arousal = sample["label_arosual"]
-                valence = sample["label_valence"]
-                daypart = sample["label_daypart"]
+            if len(sample['x1_t'])>0:
+                with torch.no_grad():
+                    x1 = sample["x1"]
+                    arousal = sample["label_arosual"]
+                    valence = sample["label_valence"]
+                    daypart = sample["label_daypart"]
 
-                arousal = arousal.to(self.device)
-                valence = valence.to(self.device)
-                daypart = valence.to(self.device)
-                batch_size = x.size(0)
-                pred_arousal,pred_valence,pred_daypart = self.model(sample)
-                pred_arousal = pred_arousal.to(self.device) 
-                pred_valence = pred_valence.to(self.device) 
-               # pred_daypart = pred_daypart.to(self.device) 
+                    arousal = arousal.to(self.device)
+                    valence = valence.to(self.device)
+                    daypart = daypart.to(self.device)
+                    batch_size = x1.size(0)
+                    pred_arousal,pred_valence,pred_daypart = self.model(sample)
+                    pred_arousal = pred_arousal.to(self.device) 
+                    pred_valence = pred_valence.to(self.device) 
+                    pred_daypart = pred_daypart.to(self.device) 
 
-                #y_pred_binary_arousal = 0.5 * (torch.sign(torch.sigmoid(pred_arousal) - 0.5) + 1).to(self.device)
-                #y_pred_binary_valence = 0.5 * (torch.sign(torch.sigmoid(pred_valence) - 0.5) + 1).to(self.device)
+                    #y_pred_binary_arousal = 0.5 * (torch.sign(torch.sigmoid(pred_arousal) - 0.5) + 1).to(self.device)
+                    #y_pred_binary_valence = 0.5 * (torch.sign(torch.sigmoid(pred_valence) - 0.5) + 1).to(self.device)
 
-                #outputs_all = torch.cat((outputs_all, y_pred_binary_arousal,y_pred_binary_valence))
-                #labels_all = torch.cat((labels_all, y.unsqueeze(1)))
+                    #outputs_all = torch.cat((outputs_all, y_pred_binary_arousal,y_pred_binary_valence))
+                    #labels_all = torch.cat((labels_all, y.unsqueeze(1)))
 
                 # Add metrics of current batch
                 total_dataset_size += batch_size
                 total_loss += self.model.loss(pred_arousal,arousal) * batch_size #+  self.model.loss(pred_valence,valence)* batch_size
 
-        total_accuracy += 0 #compute_total_matches(y, pred_y)
+            total_accuracy += 0 #compute_total_matches(y, pred_y)
 
-        # Average metrics over the whole dataset
-        total_loss /= total_dataset_size
-        total_accuracy /= total_dataset_size
+            # Average metrics over the whole dataset
+            total_loss /= total_dataset_size
+            total_accuracy /= total_dataset_size
 
-        self.val_stats["validation_loss"] = total_loss.item()
-        self.val_stats["validation_accuracy"] = 0  #total_accuracy.item()
- 
-        if not self.val_stats["best_validation_loss"] < self.val_stats[
-                "validation_loss"]:
-            self.val_stats["best_validation_loss"] = self.val_stats[
-                "validation_loss"]
-            if save and self.args.save_model == "best":
-                self.save_model()
+            self.val_stats["validation_loss"] = total_loss.item()
+            self.val_stats["validation_accuracy"] = 0  #total_accuracy.item()
+    
+            if not self.val_stats["best_validation_loss"] < self.val_stats[
+                    "validation_loss"]:
+                self.val_stats["best_validation_loss"] = self.val_stats[
+                    "validation_loss"]
+                if save and self.args.save_model == "best":
+                    self.save_model()
 
-        self.writer.add_scalar('validation/validation loss',
-                               self.val_stats["validation_loss"], self.epoch)
-        self.writer.add_scalar('validation/best validation loss',
-                               self.val_stats["best_validation_loss"],
-                               self.epoch)
-        self.writer.add_scalar('validation/accuracy',
-                               self.val_stats["validation_accuracy"],
-                               self.epoch)
+            self.writer.add_scalar('validation/validation loss',
+                                self.val_stats["validation_loss"], self.epoch)
+            self.writer.add_scalar('validation/best validation loss',
+                                self.val_stats["best_validation_loss"],
+                                self.epoch)
+            self.writer.add_scalar('validation/accuracy',
+                                self.val_stats["validation_accuracy"],
+                                self.epoch)
 
         return
 
@@ -486,12 +493,15 @@ class DevelopingSuite(object):
             self.device)  # <-- changed so it is automatic
         outputs_all_daypart = torch.zeros(0).to(
             self.device)  # <-- changed so it is automatic
+      
+
         targets_all_arousal = torch.zeros(0).to(
             self.device)  # <-- changed so it is automatic
         targets_all_valence = torch.zeros(0).to(
                     self.device)  # <-- changed so it is automatic
         targets_all_daypart = torch.zeros(0).to(
                     self.device)  # <-- changed so it is automatic
+        
         tot = 0
 
         self.args.mode = "test"
@@ -504,26 +514,29 @@ class DevelopingSuite(object):
 
         with torch.no_grad():
             for sample in tqdm(self.test_dataloader):
-                x_t = sample["x"]
-                y_t_arosual = sample["label_arosual"].to(self.device)
+                x_t = sample["x1"]
+                y_t_arousal = sample["label_arosual"].to(self.device)
                 y_t_valence = sample["label_valence"].to(self.device)
                 y_t_daypart = sample["label_daypart"].to(self.device)
-
+                
                 tot = tot + x_t.shape[0]
                 y_pred_arousal, y_pred_valence, y_pred_daypart = self.model(sample)
                 y_pred_binary_arousal = torch.argmax(torch.sigmoid(y_pred_arousal), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
                 y_pred_binary_valence = torch.argmax(torch.sigmoid(y_pred_valence), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
-                #y_pred_binary_daypart = torch.argmax(torch.sigmoid(y_pred_daypart), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
+                y_pred_binary_daypart = torch.argmax(torch.sigmoid(y_pred_daypart), dim=1 ).float()#0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5) + 1)
+        
                 outputs_all_arousal = torch.cat((outputs_all_arousal, y_pred_binary_arousal), 0)
                 outputs_all_valence = torch.cat((outputs_all_valence, y_pred_binary_valence), 0)
-                #outputs_all_daypart = torch.cat((outputs_all_daypart, y_pred_binary_daypart), 0)
-                targets_all_arousal = torch.cat((targets_all_arousal, y_t_arosual,), 0)
+                outputs_all_daypart = torch.cat((outputs_all_daypart, y_pred_binary_daypart), 0)
+        
+                
+                targets_all_arousal = torch.cat((targets_all_arousal, y_t_arousal,), 0)
                 targets_all_valence = torch.cat((targets_all_valence, y_t_valence,), 0)
-                #targets_all_daypart = torch.cat((targets_all_daypart, y_t_daypart,), 0)
+                targets_all_daypart = torch.cat((targets_all_daypart, y_t_daypart,), 0)
 
-                target = torch.argmax(torch.sigmoid(y_t_arosual), dim=1 ).float()
-                acc = acc + (torch.sum(y_pred_binary_arousal == target)) 
-                pos = pos + self.args.batch_size #torch.sum(y_t, dim=0)
+                #target = torch.argmax(torch.sigmoid(y_t_arosual), dim=1 ).float()
+                #acc = acc + (torch.sum(y_pred_binary_arousal == target)) 
+                #pos = pos + self.args.batch_size #torch.sum(y_t, dim=0)
 
         return outputs_all_arousal,outputs_all_valence,outputs_all_daypart,targets_all_arousal,targets_all_valence,targets_all_daypart
 

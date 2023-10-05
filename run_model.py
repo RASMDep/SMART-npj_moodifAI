@@ -12,9 +12,9 @@ save_dir = './results'
 str_args = [
         "--mode=train",
         "--less-features",
-        "--n-channels=4",
+        "--n-channels=6",
         "--data=ecg_data",
-        "--model=Conv1dNet",
+        "--model=twoConv1dNet_MLP",
         "--num-class=3",
         "--n-kfold=5",
         "--test-subject=S010",
@@ -31,7 +31,7 @@ str_args = [
         "--num-processes=-1",
         "--epochs=50",
         "--scheduler=exp",  # feature_branch: no
-        "--batch-size=10",  # feature_branch: 16
+        "--batch-size=5",  # feature_branch: 16
         "--logstep-train=10",
         "--optimizer=adam",
         "--lr=0.001",
@@ -46,7 +46,7 @@ developingSuite.train_and_eval()
 
 noise = 0
 print("results for noise:" + str(noise))
-outputs_all_arousal,outputs_all_valence,outputs_all_daypart,targets_all_arousal,targets_all_valence,targets_all_daypart  = developingSuite.eval_model_stats()
+outputs_all_arousal,outputs_all_valence,_,targets_all_arousal,targets_all_valence,_= developingSuite.eval_model_stats()
 
 
 print("arosual")
@@ -54,10 +54,15 @@ arosual = torch.argmax(torch.sigmoid(targets_all_arousal), dim=1 ).float()
 print(skm.classification_report(arosual.cpu(),outputs_all_arousal.cpu()))
 print(skm.confusion_matrix(arosual.cpu(),outputs_all_arousal.cpu()))
 
+
 print("valence")
 valence = torch.argmax(torch.sigmoid(targets_all_valence), dim=1 ).float()
 print(skm.classification_report(valence.cpu(),outputs_all_valence.cpu()))
 print(skm.confusion_matrix(valence.cpu(),outputs_all_valence.cpu()))
+
+#valence2 = torch.argmax(torch.sigmoid(targets_all_valence2), dim=1 ).float()
+#print(skm.classification_report(valence2.cpu(),outputs_all_valence2.cpu()))
+#print(skm.confusion_matrix(valence2.cpu(),outputs_all_valence2.cpu()))
 
 #print("day part")
 #time = torch.argmax(torch.sigmoid(targets_all_daypart), dim=1 ).float()

@@ -5,7 +5,7 @@ from typing import Optional, Sequence
 from torch import Tensor
 from loss_functions.losses import AsymmetricLoss,ASLSingleLabel
 import torch.nn.functional as F
-from balanced_loss import Loss
+#from balanced_loss import Loss
 from torch.autograd import Function
 
 class ReverseLayerF(Function):
@@ -143,17 +143,33 @@ class Conv1dNet2(torch.nn.Module):
         self.classifier_task3 = nn.Sequential(
                     nn.Linear(32+self.n_feat, 16),nn.ReLU(),
                     nn.Linear(16, self.n_out_class))
+        
+        self.classifier_task4 = nn.Sequential(
+                    nn.Linear(32+self.n_feat, 16),nn.ReLU(),
+                    nn.Linear(16, self.n_out_class))
+    
+        self.classifier_task5 = nn.Sequential(
+                    nn.Linear(32+self.n_feat, 16),nn.ReLU(),
+                    nn.Linear(16, self.n_out_class))
     
 
         # used when transformining into a n classifier x features version
         # arousal classifier
-        self.block8_arosual = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
-        self.p7_arosual = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
-        self.p8_arosual = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
+        self.block8_arosual1 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
+        self.p7_arosual1 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
+        self.p8_arosual1 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
         # valence classifier
-        self.block8_valence = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
-        self.p7_valence = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
-        self.p8_valence = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
+        self.block8_valence1 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
+        self.p7_valence1 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
+        self.p8_valence1 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
+        # arousal classifier
+        self.block8_arosual2 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
+        self.p7_arosual2 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
+        self.p8_arosual2 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
+        # valence classifier
+        self.block8_valence2 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
+        self.p7_valence2 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
+        self.p8_valence2 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
         
         
 
@@ -182,9 +198,16 @@ class Conv1dNet2(torch.nn.Module):
             z = z.view(batch_size, -1, 64, ) # GRU
             z = self.gru(z)                   # GRU              
             #z = self.lastpool(z).squeeze(2)  # simple CNN
+<<<<<<< HEAD
             arosual = self.classifier_task1(z)
             valence = self.classifier_task2(z)
+=======
+            arosual1 = self.classifier_task1(z)
+            valence1 = self.classifier_task2(z)
+>>>>>>> 1bcec05f5d7f25e8c0078c9ce85b3e76259839d4
             time = self.classifier_task3(z)
+            arosual2 = self.classifier_task4(z)
+            valence2 = self.classifier_task5(z)
            
         else:
             z = self.feature_extractor(x_ext)
@@ -200,7 +223,7 @@ class Conv1dNet2(torch.nn.Module):
             valence = F.relu(valence)
             valence = torch.einsum("bec,ec->bc",valence,self.p8_valence)      
 
-        return arosual,valence, time
+        return arosual1,valence1, time, arosual2, valence2
 
 
     def loss(self, y_pred, y_gt):
