@@ -45,7 +45,6 @@ def get_data(args):
     fold_test = args.fold_test
     n_kfold = args.n_kfold
 
-    #dir = "/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/01_Confidential_Data/MoodDetection/"
     dir = "/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection/"
     # try with data on a pickle file, advantage load once
     # open the pickle file in read mode
@@ -56,12 +55,21 @@ def get_data(args):
     subject = args.test_subject#"S008"
 
     data_training = {}
-    data_training["x"] = data["x"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True) #
-    data_training["acc_x"] = data["acc_x"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True)[data["uid"]!=subject].reset_index( drop=True)
-    data_training["acc_y"] = data["acc_y"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True)[data["uid"]!=subject].reset_index( drop=True)
-    data_training["acc_z"] = data["acc_z"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index( drop=True) #[np.logical_and(data["uid"]!=subject, data["night"]!=night)].reset_index( drop=True)[data["uid"]!=subject].reset_index( drop=True)  
-    data_training["y"] = data["y"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index(drop=True)
-    data_training["daypart"] = data["daypart"][data["uid"]!=subject].reset_index( drop=True)#[data["uid"]!=subject].reset_index(drop=True)
+
+    data["x"] = data["x"][data["uid"]!="S009"].reset_index( drop=True)
+    data["acc_x"] = data["acc_x"][data["uid"]!="S009"].reset_index( drop=True)
+    data["acc_y"] = data["acc_y"][data["uid"]!="S009"].reset_index( drop=True)
+    data["acc_z"] = data["acc_z"][data["uid"]!="S009"].reset_index( drop=True)
+    data["y"] = data["y"][data["uid"]!="S009"].reset_index( drop=True)
+    data["daypart"] = data["daypart"][data["uid"]!="S009"].reset_index( drop=True)
+
+    
+    data_training["x"] = data["x"][data["uid"]!=subject].reset_index( drop=True)
+    data_training["acc_x"] = data["acc_x"][data["uid"]!=subject].reset_index( drop=True)
+    data_training["acc_y"] = data["acc_y"][data["uid"]!=subject].reset_index( drop=True)
+    data_training["acc_z"] = data["acc_z"][data["uid"]!=subject].reset_index( drop=True)
+    data_training["y"] = data["y"][data["uid"]!=subject].reset_index( drop=True)
+    data_training["daypart"] = data["daypart"][data["uid"]!=subject].reset_index( drop=True)
 
 
     cv = StratifiedKFold(n_splits=n_kfold, random_state = 12, shuffle =True)
@@ -69,12 +77,12 @@ def get_data(args):
     train_idx, valid_idx = list(cv.split(data_training['x'],yy))[fold_test]
     
     data_test = {}
-    data_test["x"] = data["x"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True) #[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
-    data_test["acc_x"] = data["acc_x"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
-    data_test["acc_y"] = data["acc_y"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
-    data_test["acc_z"] = data["acc_z"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
-    data_test["y"] = data["y"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
-    data_test["daypart"] = data["daypart"][data["uid"]==subject].reset_index( drop=True)#[data["uid"]==subject].reset_index( drop=True)#[np.logical_and(data["uid"]==subject, data["night"]==night)].reset_index( drop=True)
+    data_test["x"] = data["x"][data["uid"]==subject].reset_index( drop=True)
+    data_test["acc_x"] = data["acc_x"][data["uid"]==subject].reset_index( drop=True)
+    data_test["acc_y"] = data["acc_y"][data["uid"]==subject].reset_index( drop=True)
+    data_test["acc_z"] = data["acc_z"][data["uid"]==subject].reset_index( drop=True)
+    data_test["y"] = data["y"][data["uid"]==subject].reset_index( drop=True)
+    data_test["daypart"] = data["daypart"][data["uid"]==subject].reset_index( drop=True)
     test_idx =  np.asarray(data_test["y"].index)#
 
 
@@ -121,15 +129,10 @@ class ecgDataset(torch.utils.data.Dataset):
 
         #arousal
         arosual = np.zeros((3),dtype=float)
-        #if self.y_data[index][0] >= 4 and np.abs(self.y_data[index][2]-6)<=2:
-            #self.y_data[index][2] = np.abs(self.y_data[index][2]-6)
-            #print("wrong label")
         arval = (self.y_data[index][0] + np.abs(self.y_data[index][2]-6))/2
-        if arval<3:
+        if arval<2:
             arosual[0]=1
-        elif arval==3:
-            arosual[1]=1
-        elif arval>3:
+        elif arval>4:
             arosual[2]=1
         else:
             arosual[1]=1
@@ -137,11 +140,9 @@ class ecgDataset(torch.utils.data.Dataset):
         #valence
         valence = np.zeros((3),dtype=float)
         vaval = (self.y_data[index][1] + np.abs(self.y_data[index][3]-6))/2
-        if vaval<3:
+        if vaval<2:
             valence[0]=1
-        elif vaval==3:
-            valence[1]=1
-        elif vaval>3:
+        elif vaval>4:
             valence[2]=1
         else:
             valence[1]=1

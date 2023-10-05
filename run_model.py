@@ -4,8 +4,8 @@ import sklearn.metrics  as skm
 from torchmetrics.classification import MulticlassCohenKappa
 
 
-data_dir="/home/gdapoian/CardioSleep"
-save_dir="/home/gdapoian/CardioSleep"
+data_dir="/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection"
+save_dir="/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection"
 model_dir = './runs'
 save_dir = './results'
 
@@ -17,7 +17,7 @@ str_args = [
         "--model=Conv1dNet",
         "--num-class=3",
         "--n-kfold=5",
-        "--test-subject=S008",
+        "--test-subject=S010",
         "--per-change=0",
         "--loss=ASL",
         "--model-filename=baseline",
@@ -29,7 +29,7 @@ str_args = [
         "--save-model=best",
         "--mode=train",
         "--num-processes=-1",
-        "--epochs=30",
+        "--epochs=50",
         "--scheduler=exp",  # feature_branch: no
         "--batch-size=10",  # feature_branch: 16
         "--logstep-train=10",

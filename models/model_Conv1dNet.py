@@ -34,7 +34,59 @@ class GRU(nn.Module):
         return x[-1]
 
 
-class Conv1dNet(torch.nn.Module):
+class Conv1dNet(nn.Module):
+    
+    def __init__(self,args):#(self, num_channels=6, num_classes=3, ):
+        super().__init__()
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        self.num_channels = args.n_channels
+        self.num_classes = args.num_class
+        num_heads=8
+        hidden_dim=256
+        dropout=0.1
+        
+        # Input embedding layer
+        self.embedding = nn.Linear(self.num_channels, hidden_dim)
+        
+        # Transformer layers
+        self.transformer_layers = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(
+                d_model=hidden_dim,
+                nhead=num_heads,
+                dim_feedforward=hidden_dim* args.n_channels,
+                dropout=dropout
+            ),
+            num_layers=3
+        )
+        
+        # Output layer
+        self.output_layer = nn.Linear(hidden_dim, self.num_classes)
+        
+    def forward(self, sample):
+        # Reshape input to (seq_len, batch_size, hidden_dim)
+        x = sample["x"]
+        x= x.to(self.device)
+        x = x.permute(0,1,2)
+        x = self.embedding(x)
+        
+        # Transformer layers
+        x = self.transformer_layers(x)
+        
+        # Average pooling over sequence dimension
+        x = torch.mean(x, dim=0)
+        
+        # Output layer
+        x = self.output_layer(x)
+        
+        return x,x,x
+    
+    def loss(self, y_pred, y_gt):
+        return self.criterion(y_pred, y_gt )
+
+
+class Conv1dNet2(torch.nn.Module):
 
     def __init__(self,args):
         """
@@ -77,7 +129,7 @@ class Conv1dNet(torch.nn.Module):
         
         self.lastpool = nn.AdaptiveMaxPool1d(1) 
 
-        self.gru = GRU(256)
+        self.gru = GRU(64)
 
 
         self.classifier_task1 = nn.Sequential(
@@ -126,12 +178,12 @@ class Conv1dNet(torch.nn.Module):
         if self.less_features == True:
         
             z = self.feature_extractor(x_ext)
-            #z = self.reduce_features(z)      # simple CNN
-            z = z.view(batch_size, -1, 256, ) # GRU
+            z = self.reduce_features(z)      # simple CNN
+            z = z.view(batch_size, -1, 64, ) # GRU
             z = self.gru(z)                   # GRU              
             #z = self.lastpool(z).squeeze(2)  # simple CNN
             arosual = self.classifier_task1(z)
-            valence = self.classifier_task1(z)
+            valence = self.classifier_task2(z)
             time = self.classifier_task3(z)
            
         else:
