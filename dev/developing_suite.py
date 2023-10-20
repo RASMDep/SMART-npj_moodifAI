@@ -66,7 +66,7 @@ parser.add_argument("--n-kfold", type=int, default=5, help="How many folds?")
 ### data parameters ################################################
 parser.add_argument("--data",
                     type=str,
-                    choices=[],
+                    choices=["passive_data"],
                     help="dataset selection")
 parser.add_argument("--data-path",
                     type=str,
@@ -125,7 +125,7 @@ parser.add_argument( "--weight-decay",
 parser.add_argument( "--model",
                     type=str,
                     default='LeNet',
-                    choices=['Conv1dNet', 'LeNet', 'Conv1dNet_10s', 'GRU', 'LSTM', 'TCN', 'ResNet1d', 'twoConv1dNet_MLP'],
+                    choices=['Conv1dNet', 'LSTMNet', 'Conv1dNet_10s', 'GRU', 'LSTM', 'TCN', 'ResNet1d', 'twoConv1dNet_MLP'],
                     help='Model to use [default=%(default)s].')
 parser.add_argument("--n-channels",
                     type=int,
@@ -254,8 +254,8 @@ class DevelopingSuite(object):
                     self.validate()
 
                     self.early_stopping(self.val_stats["validation_loss"])
-                    if self.early_stopping.early_stop:
-                        break
+                    #if self.early_stopping.early_stop:
+                        #break
 
                 if self.scheduler is not None and self.args.scheduler_step == "epoch":
                     self.scheduler.step()
@@ -275,12 +275,14 @@ class DevelopingSuite(object):
         with tqdm(self.train_dataloader, leave=False) as inner_tnr:
             for en, sample in enumerate(inner_tnr):
 
-                y = sample['y']
+                y = sample['label'].unsqueeze(1).to(self.device)
                 self.optimizer.zero_grad()
                 
-                pred_y = self.model(sample)
+                pred_y = self.model(sample["x"].to(self.device))
+                y_pred_binary = 0.5 * (torch.sign(torch.sigmoid(pred_y) - 0.5)
+                                       + 1).to(self.device)
 
-                loss = self.model.loss(pred_y,y) 
+                loss = self.model.loss(y_pred_binary,y) 
 
                 # Backward pass
                 loss.backward()
@@ -335,10 +337,12 @@ class DevelopingSuite(object):
         for sample in dataloader:
             with torch.no_grad():
                 x1 = sample["x"]
-                y = sample["y"].to(self.device)
+                y = sample["label"].unsqueeze(1).to(self.device)
 
                 batch_size = x1.size(0)
-                pred_y = self.model(sample)
+                pred_y = self.model(sample["x"].to(self.device))
+                y_pred_binary = 0.5 * (torch.sign(torch.sigmoid(pred_y) - 0.5)
+                                       + 1).to(self.device)
 
                 # Add metrics of current batch
                 total_dataset_size += batch_size
@@ -417,14 +421,15 @@ class DevelopingSuite(object):
 
         with torch.no_grad():
             for sample in tqdm(self.test_dataloader):
-                x_t = sample["x1"]
-                y = sample["y"].to(self.device)
+                x_t = sample["x"].to(self.device)
+                y = sample["label"].unsqueeze(1).to(self.device)
                 
                 tot = tot + x_t.shape[0]
-                y_pred = self.model(sample)
-                y_pred_binary = torch.argmax(torch.sigmoid(y_pred), dim=1 ).float()
+                y_pred = self.model(sample["x"].to(self.device))
+                y_pred_binary = 0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5)
+                                       + 1).to(self.device)
 
-                outputs_all= torch.cat((outputs_all, y_pred), 0)
+                outputs_all= torch.cat((outputs_all, y_pred_binary), 0)
                 targets_all = torch.cat((targets_all, y,), 0)
 
         return outputs_all,targets_all

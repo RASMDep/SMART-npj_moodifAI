@@ -1,92 +1,12 @@
+
 import numpy as np
 import torch
 import torch.nn as nn
 from typing import Optional, Sequence
 from torch import Tensor
-from loss_functions.losses import AsymmetricLoss,ASLSingleLabel
-import torch.nn.functional as F
-#from balanced_loss import Loss
-from torch.autograd import Function
+from loss_functions.losses import AsymmetricLoss
 
-class ReverseLayerF(Function):
-
-    @staticmethod
-    def forward(ctx, x, alpha):
-        ctx.alpha = alpha
-
-        return x.view_as(x)
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        output = grad_output.neg() * ctx.alpha
-
-        return output, None
-
-
-# Define the GRU
-class GRU(nn.Module):
-    def __init__(self, input_size):
-        super(GRU, self).__init__()
-        self.gru = nn.GRU(input_size=input_size, hidden_size=32, num_layers=2, batch_first=True)
-    
-    def forward(self, x):
-        _, x = self.gru(x)
-        return x[-1]
-
-
-class Conv1dNet(nn.Module):
-    
-    def __init__(self,args):#(self, num_channels=6, num_classes=3, ):
-        super().__init__()
-
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-        self.num_channels = args.n_channels
-        self.num_classes = args.num_class
-        num_heads=8
-        hidden_dim=256
-        dropout=0.1
-        
-        # Input embedding layer
-        self.embedding = nn.Linear(self.num_channels, hidden_dim)
-        
-        # Transformer layers
-        self.transformer_layers = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                d_model=hidden_dim,
-                nhead=num_heads,
-                dim_feedforward=hidden_dim* args.n_channels,
-                dropout=dropout
-            ),
-            num_layers=3
-        )
-        
-        # Output layer
-        self.output_layer = nn.Linear(hidden_dim, self.num_classes)
-        
-    def forward(self, sample):
-        # Reshape input to (seq_len, batch_size, hidden_dim)
-        x = sample["x"]
-        x= x.to(self.device)
-        x = x.permute(0,1,2)
-        x = self.embedding(x)
-        
-        # Transformer layers
-        x = self.transformer_layers(x)
-        
-        # Average pooling over sequence dimension
-        x = torch.mean(x, dim=0)
-        
-        # Output layer
-        x = self.output_layer(x)
-        
-        return x,x,x
-    
-    def loss(self, y_pred, y_gt):
-        return self.criterion(y_pred, y_gt )
-
-
-class Conv1dNet2(torch.nn.Module):
+class Conv1dNet(torch.nn.Module):
 
     def __init__(self,args):
         """
@@ -94,139 +14,50 @@ class Conv1dNet2(torch.nn.Module):
         member parameters.
         """
         super().__init__()
-        
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.in_size = args.n_channels
         self.n_out_class = args.num_class
         self.n_feat = args.n_covariates
-        self.less_features = args.less_features
 
-
-        if args.loss == 'ASL':
-            self.criterion = AsymmetricLoss(gamma_neg=args.gamma_neg, gamma_pos=args.gamma_pos)
-        else:
-            self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.BCEWithLogitsLoss()
 
         # 12 is the input space in terms of ECG leads, 16 is the output space corresponding to the new features
         # Conv1d(input size==ecg channels, outputs size , filter size)
-        self.feature_extractor = nn.Sequential(
-                        nn.Conv1d(self.in_size, 16, 5, stride=1, padding = 2),nn.ReLU(),nn.MaxPool1d(4, stride=4),nn.BatchNorm1d(16),
-                        nn.Conv1d(16, 32, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(4, stride=4), nn.BatchNorm1d(32),
-                        nn.Conv1d(32, 64, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(4, stride=4), nn.BatchNorm1d(64),
-                        nn.Conv1d(64, 128, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(4, stride=4), nn.BatchNorm1d(128),
-                        nn.Conv1d(128, 256, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(4, stride=4))#, nn.BatchNorm1d(256),
-                        ## downsampling of max to this size and write the pooling 
-                        #nn.Conv1d(256, 512, 5, stride=1, padding = 2), nn.ReLU())
-    
-
-        self.reduce_features = nn.Sequential(
-                        #nn.Conv1d(512, 256, 5, stride=1, padding = 2),nn.ReLU(),
-                        nn.Conv1d(256, 128, 5, stride=1, padding = 2),nn.ReLU(),
-                        nn.Conv1d(128, 64, 5, stride=1, padding = 2),nn.ReLU(),
-                        nn.Conv1d(64, 32, 5, stride=1, padding = 2),nn.ReLU()
-                        )
-        
+        self.block1 = nn.Sequential(nn.Conv1d(self.in_size, 16, 5, stride=1, padding = 2),nn.ReLU(),nn.MaxPool1d(4, stride=4),nn.BatchNorm1d(16))
+        self.block2 = nn.Sequential(nn.Conv1d(16, 32, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(4, stride=4), nn.BatchNorm1d(32))
+        self.block3 = nn.Sequential(nn.Conv1d(32, 64, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(4, stride=4), nn.BatchNorm1d(64))
+        self.block4 = nn.Sequential(nn.Conv1d(64, 128, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(4, stride=4), nn.BatchNorm1d(128))
+        ## downsampling of max to this size and write the pooling 
+        self.block5 = nn.Sequential(nn.Conv1d(128, 256, 5, stride=1, padding = 2), nn.ReLU())
         self.lastpool = nn.AdaptiveMaxPool1d(1) 
+        self.block6 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU()) 
+        # go from 64x4 to 1 with linear layer
+        self.l6 = nn.Conv1d(512, self.n_out_class, 1, stride=1, padding = 0)
+        self.l7 = nn.Linear(512, self.n_out_class )
 
-        self.gru = GRU(64)
 
-
-        self.classifier_task1 = nn.Sequential(
-                    nn.Linear(32+self.n_feat, 16),nn.ReLU(),
-                    nn.Linear(16, self.n_out_class ))
-       
-        self.classifier_task2 = nn.Sequential(
-                    nn.Linear(32+self.n_feat, 16),nn.ReLU(),
-                    nn.Linear(16, self.n_out_class))
-        
-        self.classifier_task3 = nn.Sequential(
-                    nn.Linear(32+self.n_feat, 16),nn.ReLU(),
-                    nn.Linear(16, self.n_out_class))
-        
-        self.classifier_task4 = nn.Sequential(
-                    nn.Linear(32+self.n_feat, 16),nn.ReLU(),
-                    nn.Linear(16, self.n_out_class))
-    
-        self.classifier_task5 = nn.Sequential(
-                    nn.Linear(32+self.n_feat, 16),nn.ReLU(),
-                    nn.Linear(16, self.n_out_class))
-    
-
-        # used when transformining into a n classifier x features version
-        # arousal classifier
-        self.block8_arosual1 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
-        self.p7_arosual1 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
-        self.p8_arosual1 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
-        # valence classifier
-        self.block8_valence1 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
-        self.p7_valence1 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
-        self.p8_valence1 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
-        # arousal classifier
-        self.block8_arosual2 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
-        self.p7_arosual2 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
-        self.p8_arosual2 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
-        # valence classifier
-        self.block8_valence2 = nn.Sequential(nn.Linear(256+self.n_feat, 512),nn.ReLU())
-        self.p7_valence2 = nn.Parameter(torch.randn((512,32,self.n_out_class)),requires_grad=True)
-        self.p8_valence2 = nn.Parameter(torch.randn((32, self.n_out_class)), requires_grad=True) 
-        
-        
-
-    def forward(self, sample):
+    def forward(self, x):
         """
         In the forward function we accept a Tensor of input data and we must return
         a Tensor of output data. We can use Modules defined in the constructor as
         well as arbitrary operators on Tensors.
-        
         """
-        
-        x = sample["x"]
-        x= x.to(self.device)
-        x_ext = torch.zeros((x.shape[0], x.shape[1], int(np.ceil(x.shape[2]/256))*256)).to(self.device)
-        x_ext[:,:, 0:x.shape[2]] = x
+        z = self.block1(x)
+        z = self.block2(z)
+        z = self.block3(z)
+        z = self.block4(z)
+        z = self.block5(z)
+        #z = z*mask_d + (1-mask_d)*(-1e6)
+        z = self.lastpool(z).squeeze(2)
+        # add additional hand crafted features before last layer, do not forget to normalize these features (0 mean, 1 variance)
+        #z = torch.cat([z,covariates], dim = 1)
+        # Finally: multy layer percepton with one hidden layer and 1 linear layer for the classification
+        z = self.block6(z)
+        z = self.l7(z)
 
-        ### divide in 5 minutes, needed only when using the GRU
-        batch_size, num_channels, signal_length = x_ext.size()# GRU 
-        x_ext = x_ext.view(batch_size * (signal_length // 38400), num_channels, 38400)# GRU 
-        
-        
-        if self.less_features == True:
-        
-            z = self.feature_extractor(x_ext)
-            z = self.reduce_features(z)      # simple CNN
-            z = z.view(batch_size, -1, 64, ) # GRU
-            z = self.gru(z)                   # GRU              
-            #z = self.lastpool(z).squeeze(2)  # simple CNN
-<<<<<<< HEAD
-            arosual = self.classifier_task1(z)
-            valence = self.classifier_task2(z)
-=======
-            arosual1 = self.classifier_task1(z)
-            valence1 = self.classifier_task2(z)
->>>>>>> 1bcec05f5d7f25e8c0078c9ce85b3e76259839d4
-            time = self.classifier_task3(z)
-            arosual2 = self.classifier_task4(z)
-            valence2 = self.classifier_task5(z)
-           
-        else:
-            z = self.feature_extractor(x_ext)
-            z = self.lastpool(z).squeeze(2)
-        
-            arosual = self.block8_arosual(z)
-            arosual = torch.einsum("bf, fec->bec",arosual,self.p7_arosual)
-            arosual= F.relu(arosual)
-            arosual = torch.einsum("bec,ec->bc",arosual,self.p8_arosual)          
-
-            valence = self.block8_valence(z)
-            valence = torch.einsum("bf, fec->bec",valence,self.p7_valence)
-            valence = F.relu(valence)
-            valence = torch.einsum("bec,ec->bc",valence,self.p8_valence)      
-
-        return arosual1,valence1, time, arosual2, valence2
+        return z 
 
 
     def loss(self, y_pred, y_gt):
-        return self.criterion(y_pred, y_gt )
-         
+        return self.criterion(y_pred, y_gt)
 

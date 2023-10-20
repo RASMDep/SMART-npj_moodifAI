@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from models import model_GRU, model_Conv1dNet, model_Conv1dNetSegments, model_LSTM, model_TCN, model_ResNet, model_twoConv1dNet_MLP 
+from models import model_Conv1dNet, lstm
 
 def get_model(args,data=None):
 
@@ -8,8 +8,8 @@ def get_model(args,data=None):
     if args.model == 'Conv1dNet': 
         print(args.model)
         model = model_Conv1dNet.Conv1dNet(args)
-    elif args.model == 'twoConv1dNet_MLP': 
-        model = model_twoConv1dNet_MLP.twoConv1dNet_MLP(args)
+    elif args.model == 'LSTMNet': 
+        model = lstm.LSTMNet(args)
     else:
         raise NotImplementedError
     
