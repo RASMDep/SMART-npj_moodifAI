@@ -253,7 +253,7 @@ class DevelopingSuite(object):
                 if self.epoch % self.args.val_every_n_epochs == 0 and self.args.val_every_n_epochs != -1:
                     self.validate()
 
-                    self.early_stopping(self.val_stats["validation_loss"])
+                    #self.early_stopping(self.val_stats["validation_loss"])
                     #if self.early_stopping.early_stop:
                         #break
 
@@ -282,7 +282,7 @@ class DevelopingSuite(object):
                 y_pred_binary = 0.5 * (torch.sign(torch.sigmoid(pred_y) - 0.5)
                                        + 1).to(self.device)
 
-                loss = self.model.loss(y_pred_binary,y) 
+                loss = self.model.loss(pred_y,y) 
 
                 # Backward pass
                 loss.backward()
@@ -345,8 +345,8 @@ class DevelopingSuite(object):
                                        + 1).to(self.device)
 
                 # Add metrics of current batch
-                total_dataset_size += batch_size
-                total_loss += (self.model.loss(pred_y,y)  
+                total_dataset_size = batch_size
+                total_loss = (self.model.loss(pred_y,y)  
                                 )* batch_size 
 
             total_accuracy += 0 #compute_total_matches(y, pred_y)

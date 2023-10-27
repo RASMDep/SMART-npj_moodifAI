@@ -19,7 +19,7 @@ class Conv1dNet(torch.nn.Module):
         self.n_out_class = args.num_class
         self.n_feat = args.n_covariates
 
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.7]))
 
         # 12 is the input space in terms of ECG leads, 16 is the output space corresponding to the new features
         # Conv1d(input size==ecg channels, outputs size , filter size)

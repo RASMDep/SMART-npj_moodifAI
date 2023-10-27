@@ -13,6 +13,8 @@ from scipy import signal
 from scipy.signal import medfilt
 import datetime
 
+
+
 b, a = signal.butter(4, 0.25, 'highpass', fs=128)
 imq = 0
 
@@ -49,7 +51,7 @@ def get_data(args):
     subject = "SMART_012"
     val_subject = "SMART_012"
 
-    data_dir = "/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/01_Confidential_Data/read_only/SMART_derived_features/"
+    data_dir = "/Users/giulia/Desktop/SMART_derived_features"
     # Specify the path to the pickle file you want to read
     file_path = "HRV_ACC_timeseries_24hours_clean.pkl"  # Replace with the actual file path
 
@@ -59,24 +61,34 @@ def get_data(args):
         # Load the data from the pickle file
         data = pickle.load(file)
 
-    data_training = {key[1]:value for key, value in data.items() if not key[0].startswith(subject) or key[0].startswith(val_subject) }
-    data_training = pd.DataFrame(data_training).transpose()
-    train_idx =  np.asarray(data_training["imq2"].index)
+    data_all = pd.DataFrame(data).transpose()
+    data_all = data_all.reset_index()
+
+    #data_training = {key[1]:value for key, value in data.items() if not key[0].startswith(subject) or key[0].startswith(val_subject) }
+    #data_training = pd.DataFrame(data_training).transpose()
+    #train_idx =  np.asarray(data_training["imq2"].index)
 
 
-    data_validation = {key[1]:value for key, value in data.items() if key[0].startswith(val_subject)}
-    data_validation = pd.DataFrame(data_validation).transpose()
-    valid_idx =  np.asarray(data_validation["imq2"].index)
+    #data_validation = {key[1]:value for key, value in data.items() if key[0].startswith(val_subject)}
+    #data_validation = pd.DataFrame(data_validation).transpose()
+    #valid_idx =  np.asarray(data_validation["imq2"].index)
 
     
-    data_test = {key[1]:value for key, value in data.items() if key[0].startswith(subject)}
-    data_test = pd.DataFrame(data_test).transpose()
+    #data_test = {key[1]:value for key, value in data.items() if key[0].startswith(subject)}
+    #data_test = pd.DataFrame(data_test).transpose()
+    #test_idx =  np.asarray(data_test["imq2"].index)
 
-    test_idx =  np.asarray(data_test["imq2"].index)
+    cv = StratifiedKFold(n_splits=n_kfold, random_state = 12, shuffle =True)
+    yy = np.vstack(data_all["depression"][:])
+    train_idx, valid_idx1 = list(cv.split(data_all['imq1'],yy))[fold_test]
 
-    dataset_train = ecgDataset(data_training, args, train_idx)  # create your datset
-    dataset_val = ecgDataset(data_validation, args, valid_idx) # create your datset
-    dataset_test = ecgDataset(data_test, args, test_idx) # create your datset
+    valid_idx = valid_idx1[0:20]
+    test_idx = valid_idx1[20:]
+
+
+    dataset_train = ecgDataset(data_all, args, train_idx)  # create your datset
+    dataset_val = ecgDataset(data_all, args, valid_idx) # create your datset
+    dataset_test = ecgDataset(data_all, args, test_idx) # create your datset
 
 
     return dataset_train, dataset_val,dataset_test
@@ -94,24 +106,27 @@ class ecgDataset(torch.utils.data.Dataset):
         self.activity_counts = data['activity_counts'].copy()
         self.step_count = data['step_count'].copy()
         self.run_walk_time = data['run_walk_time'].copy()
-        self.y_data = data['imq2'].copy()
-        self.y_data =  self.y_data>3
+        self.y_data = data['imq3'].copy()
+        self.y_data = self.y_data >=3
 
     def __getitem__(self, index):
 
-
         x1 = np.asarray(self.x_data[index])
-        x1 = (x1 - 33) / (180 - 33)
+        #x1 = (x1 - 33) / (180 - 33)
 
         x2 = np.asarray(self.step_count[index])
-        x2 = x2/100
+        #x2 = x2/100
 
-        x3 = np.asarray(self.SampEn_Data[index])
+        x3 = np.asarray(self.RMSSD_Data[index])
+        #x3 = x3/1000
 
-        x=np.zeros((2,288))
+        x4 = np.asarray(self.SampEn_Data[index])
+
+        x=np.zeros((4,288))
         x[0,0:len(x1)] = x1
-        x[1,0:len(x2)] = x3  
-        #x[2,0:len(x2)] = x3  
+        x[1,0:len(x2)] = x2
+        x[2,0:len(x2)] = x3  
+        x[3,0:len(x2)] = x4
         x = np.nan_to_num(x, nan=0)
         x = torch.from_numpy(x).float()
         y = torch.from_numpy(np.asarray(self.y_data[index])).float()

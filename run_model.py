@@ -1,7 +1,7 @@
 from dev.developing_suite import DevelopingSuite
 from dev.developing_suite import *
 import sklearn.metrics  as skm
-from torchmetrics.classification import MulticlassCohenKappa
+#from torchmetrics.classification import MulticlassCohenKappa
 
 
 data_dir="/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection"
@@ -11,12 +11,12 @@ save_dir = './results'
 
 str_args = [
         "--mode=train",
-        "--n-channels=2",
+        "--n-channels=4",
         "--data=passive_data",
         "--model=Conv1dNet",
         "--num-class=1",
-        "--n-kfold=5",
-        "--test-subject=SMART_019",
+        "--n-kfold=10",
+        "--test-subject=SMART_013",
         "--per-change=0",
         "--loss=BCE",
         "--model-filename=baseline",
@@ -27,9 +27,9 @@ str_args = [
         "--n-covariates=1",
         "--save-model=best",
         "--mode=train",
-        "--epochs=100",
+        "--epochs=30",
         "--scheduler=exp",  # feature_branch: no
-        "--batch-size=8",  # feature_branch: 16
+        "--batch-size=10",  # feature_branch: 16
         "--logstep-train=4",
         "--optimizer=adam",
         "--lr=0.001",
