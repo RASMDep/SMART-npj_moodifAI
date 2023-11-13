@@ -4,27 +4,32 @@ import sklearn.metrics  as skm
 #from torchmetrics.classification import MulticlassCohenKappa
 
 
-data_dir="/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection"
-save_dir="/home/gdapoian/Ambizione/01_Confidential_Data/MoodDetection"
+data_dir="/Users/giulia/Desktop/SMART_derived_features"
+save_dir="/Users/giulia/Desktop/SMART_derived_features"
+data_file= "HRV_timeseries_24hour_clean_25percent_withpilot.pkl"
 model_dir = './runs'
 save_dir = './results'
+target = "valence_class"
+
 
 str_args = [
+        "--target="+target,
         "--mode=train",
-        "--n-channels=4",
+        "--n-channels=1",
         "--data=passive_data",
         "--model=Conv1dNet",
-        "--num-class=1",
+        "--num-class=3",
         "--n-kfold=10",
-        "--test-subject=SMART_013",
+        "--test-subject=none",
         "--per-change=0",
         "--loss=BCE",
         "--model-filename=baseline",
         "--save-dir="+save_dir,
         "--data-path="+data_dir,
+        "--data-file="+data_file,
         "--gamma-neg=5",
         "--gamma-pos=1",
-        "--n-covariates=1",
+        "--n-covariates=0",
         "--save-model=best",
         "--mode=train",
         "--epochs=30",
