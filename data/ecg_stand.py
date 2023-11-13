@@ -12,83 +12,76 @@ import pickle
 from scipy import signal
 from scipy.signal import medfilt
 import datetime
+import numpy as np
 
 
+# Dictionary mapping string values to numeric values
+mapping = {
+    'MORNING_INTERVENTION': 0,
+    'morning': 0,
+    'kss_mood': 0.5,
+    'evening': 1
+}
 
-b, a = signal.butter(4, 0.25, 'highpass', fs=128)
-imq = 0
-
-
-def fix_baseline_wander(data, fs=128):
-    """BaselineWanderRemovalMedian.m from ecg-kit.  Given a list of amplitude values
-    (data) and sample rate (sr), it applies two median filters to data to
-    compute the baseline.  The returned result is the original data minus this
-    computed baseline.
-    """
-    #source : https://pypi.python.org/pypi/BaselineWanderRemoval/2017.10.25
-
-    winsize = int(round(0.2*fs))
-    # delayBLR = round((winsize-1)/2)
-    if winsize % 2 == 0:
-        winsize += 1
-    baseline_estimate = medfilt(data, kernel_size=winsize)
-    winsize = int(round(0.6*fs))
-    # delayBLR = delayBLR + round((winsize-1)/2)
-    if winsize % 2 == 0:
-        winsize += 1
-    baseline_estimate = medfilt(baseline_estimate, kernel_size=winsize)
-    ecg_blr = data - baseline_estimate
-    return ecg_blr
+ids_p = ['SMART_201', 'SMART_001', 'SMART_003', 'SMART_004', 'SMART_006', 'SMART_008', 'SMART_009', 'SMART_007', 'SMART_010', 'SMART_012', 'SMART_015', 'SMART_016', 'SMART_018', 'SMART_019']
 
 
 def get_data(args):
 
     # Read dataset
-    dir = args.data_path
+    data_dir = args.data_path 
+    data_file =args.data_file  # Replace with the actual file path
     fold_test = args.fold_test
     n_kfold = args.n_kfold
+    target = args.target
 
-    subject = "SMART_012"
-    val_subject = "SMART_012"
+    if args.test_subject != "none":
+        # Open the pickle file for reading in binary mode
+        with open(os.path.join(data_dir,data_file), 'rb') as file:
+            # Load the data from the pickle file
+            data = pickle.load(file)
 
-    data_dir = "/Users/giulia/Desktop/SMART_derived_features"
-    # Specify the path to the pickle file you want to read
-    file_path = "HRV_ACC_timeseries_24hours_clean.pkl"  # Replace with the actual file path
+        data_all = pd.DataFrame(data.copy()).transpose()
+        data_all = data_all[data_all.Participant_ID!=args.test_subject]
+        data_all = data_all.reset_index()
+        data_all = data_all.drop([ i for i in range(0,len(data_all)) if len(data_all.loc[i,"HR_Data"])<288])
+        data_all = data_all.reset_index(drop=True)
+
+        cv = StratifiedKFold(n_splits=n_kfold, random_state = 48, shuffle =True)
+        yy = np.vstack(data_all[target][:])
+        train_idx, valid_idx = list(cv.split(data_all[target],yy))[fold_test]
+
+        data_test = pd.DataFrame(data.copy()).transpose()
+        data_test = data_test[data_test.Participant_ID==args.test_subject]
+        data_test = data_test.reset_index()
+        test_idx = data_test.index
+
+        dataset_train = ecgDataset(data_all, args, train_idx)  # create your datset
+        dataset_val = ecgDataset(data_all, args, valid_idx) # create your datset
+        dataset_test = ecgDataset(data_test, args, test_idx) # create your datset
+
+    else:
+                # Open the pickle file for reading in binary mode
+        with open(os.path.join(data_dir,data_file), 'rb') as file:
+            # Load the data from the pickle file
+            data = pickle.load(file)
+
+        data_all = pd.DataFrame(data.copy()).transpose()
+        data_all = data_all.reset_index()
+        data_all = data_all.drop([i for i in range(len(data_all)) if len(data_all.loc[i, "HR_Data"]) < 288])
+        data_all = data_all.reset_index(drop=True)  # Use drop=True to remove the old index column
 
 
-    # Open the pickle file for reading in binary mode
-    with open(os.path.join(data_dir,file_path), 'rb') as file:
-        # Load the data from the pickle file
-        data = pickle.load(file)
-
-    data_all = pd.DataFrame(data).transpose()
-    data_all = data_all.reset_index()
-
-    #data_training = {key[1]:value for key, value in data.items() if not key[0].startswith(subject) or key[0].startswith(val_subject) }
-    #data_training = pd.DataFrame(data_training).transpose()
-    #train_idx =  np.asarray(data_training["imq2"].index)
+        cv = StratifiedKFold(n_splits=n_kfold, random_state = 48, shuffle =True)
+        yy = np.vstack(data_all[target][:])
+        train_idx1, test_idx = list(cv.split(data_all[target],yy))[fold_test]
+        train_idx = train_idx1[30:]
+        valid_idx = train_idx1[0:30]
 
 
-    #data_validation = {key[1]:value for key, value in data.items() if key[0].startswith(val_subject)}
-    #data_validation = pd.DataFrame(data_validation).transpose()
-    #valid_idx =  np.asarray(data_validation["imq2"].index)
-
-    
-    #data_test = {key[1]:value for key, value in data.items() if key[0].startswith(subject)}
-    #data_test = pd.DataFrame(data_test).transpose()
-    #test_idx =  np.asarray(data_test["imq2"].index)
-
-    cv = StratifiedKFold(n_splits=n_kfold, random_state = 12, shuffle =True)
-    yy = np.vstack(data_all["depression"][:])
-    train_idx, valid_idx1 = list(cv.split(data_all['imq1'],yy))[fold_test]
-
-    valid_idx = valid_idx1[0:20]
-    test_idx = valid_idx1[20:]
-
-
-    dataset_train = ecgDataset(data_all, args, train_idx)  # create your datset
-    dataset_val = ecgDataset(data_all, args, valid_idx) # create your datset
-    dataset_test = ecgDataset(data_all, args, test_idx) # create your datset
+        dataset_train = ecgDataset(data_all, args, train_idx)  # create your datset
+        dataset_val = ecgDataset(data_all, args, valid_idx) # create your datset
+        dataset_test = ecgDataset(data_all, args, test_idx) # create your datset
 
 
     return dataset_train, dataset_val,dataset_test
@@ -106,34 +99,47 @@ class ecgDataset(torch.utils.data.Dataset):
         self.activity_counts = data['activity_counts'].copy()
         self.step_count = data['step_count'].copy()
         self.run_walk_time = data['run_walk_time'].copy()
-        self.y_data = data['imq3'].copy()
-        self.y_data = self.y_data >=3
+        self.y_data = data[args.target].copy()
+        self.day_part = data['quest_type'].copy()
+        self.depression = data['depression'].copy()
+
 
     def __getitem__(self, index):
 
         x1 = np.asarray(self.x_data[index])
         #x1 = (x1 - 33) / (180 - 33)
+        x1 = (x1 - np.nanmean(x1)) / (np.nanstd(x1))
 
-        x2 = np.asarray(self.step_count[index])
-        #x2 = x2/100
+        x2 = np.asarray(self.activity_counts[index])
+        #x2 = (x2 - np.nanmean(x2)) / (np.nanstd(x2))
+        x2 = x2/400
 
         x3 = np.asarray(self.RMSSD_Data[index])
         #x3 = x3/1000
+        #x3 = (x3 - np.nanmean(x3)) / (np.nanstd(x3))
 
         x4 = np.asarray(self.SampEn_Data[index])
+        #x4 = (x4 - np.nanmean(x4)) / (np.nanstd(x4))
+        
 
-        x=np.zeros((4,288))
+        x=np.zeros((2,288))
         x[0,0:len(x1)] = x1
         x[1,0:len(x2)] = x2
-        x[2,0:len(x2)] = x3  
-        x[3,0:len(x2)] = x4
+        #x[2,0:len(x2)] = x3 
+        #x[3,0:len(x2)] = x4
         x = np.nan_to_num(x, nan=0)
+
         x = torch.from_numpy(x).float()
-        y = torch.from_numpy(np.asarray(self.y_data[index])).float()
+        #y = torch.from_numpy(np.asarray(self.y_data[index])).float()
+        y = torch.zeros((3))
+        y[int(self.y_data[index])] = 1
 
         mask = torch.ones((1,1,1))
 
-        covariates = torch.ones((1,1,1))
+        #covariates = torch.ones((1,1,1))
+        #covariates =  torch.tensor( mapping.get(self.day_part[index])).view(1)
+        #covariates =  torch.tensor( self.depression[index]).view(1)
+        covariates =   torch.tensor( [mapping.get(self.day_part[index]), self.depression[index]]).view(2)
         hea_file_name = " "
 
   
@@ -141,7 +147,7 @@ class ecgDataset(torch.utils.data.Dataset):
             'x': x,
             #'x2': x2,
             'label':y,
-            'covariates':0,
+            'covariates':covariates,
             'name': hea_file_name,
             'mask': mask,
             'was_changed': 0,
