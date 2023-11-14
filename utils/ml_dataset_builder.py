@@ -26,20 +26,29 @@ class DataProcessor:
     def nan_percentage(arr):
         nan_count = np.isnan(arr).sum()
         total_elements = arr.size
-        return (nan_count / total_elements) * 100
+        if total_elements==0:
+            return 100
+        else:
+            return (nan_count / total_elements) * 100
 
     @staticmethod
     def load_and_resample(data_dir, pid, subfolder, filename, freq, start_time, end_time):
+        
         df = pd.read_csv(os.path.join(data_dir, pid, subfolder, filename))
-        df['t_start_utc'] = pd.to_datetime(df['t_start_utc'], utc=True)
+        df['t_start_utc'] = pd.to_datetime(df['t_start_utc'], utc=True,format='ISO8601')
         df['t_start_utc'] = df['t_start_utc'].dt.floor(freq)
         df = df.set_index('t_start_utc')
         resampled_df = df.resample(freq).asfreq()
         return resampled_df[(resampled_df.index >= start_time) & (resampled_df.index < end_time)].reset_index()
+        
 
     def process_participant(self, questionnaire_answers, include_acc=False, include_gps=False):
         dataset = {}
         data_used = ["HRV"]
+        if include_acc:
+            data_used.append('ACC')
+        if include_gps:
+            data_used.append('GPS')
 
         for pid in tqdm.tqdm(questionnaire_answers['key_smart_id'].unique()):
             if pid in self.ids_p:
@@ -62,24 +71,22 @@ class DataProcessor:
                         self.data_dir, pid, 'hrvmetrics', f"{pid}_hrvmetrics_winlen5_overlap_0.csv", '5T',
                         start_time_hours_before, end_time
                     )
+
                     if self.nan_percentage(filtered_hrv['HRV_MeanNN']) > self.perc_missing:
                         continue
-
+                
                     # Conditionally load and resample acc and gps
                     if include_acc:
                         filtered_acc = self.load_and_resample(
                             self.data_dir, pid, 'accmetrics', f"{pid}_accmetrics_winlen_5.csv", '5T',
                             start_time_hours_before, end_time
                         )
-                        data_used.append('ACC')
 
                     if include_gps:
                         filtered_gps = self.load_and_resample(
                             self.data_dir, pid, 'gpsmetrics', f"{pid}_gpsmetrics_winlen_60.csv", '60T',
                             start_time_hours_before, end_time
                         )
-                        data_used.append('GPS')
-
 
                     entry = {
                         'Participant_ID': pid,
@@ -169,4 +176,4 @@ def main(include_pilot_data=True, include_acc=False, include_gps=False):
 
 
 # Example usage
-main(include_pilot_data=True,include_acc=False, include_gps=False)  # Set to True if you want to include pilot data
+main(include_pilot_data=False,include_acc=True, include_gps=False)  # Set to True if you want to include pilot data
