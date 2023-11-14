@@ -4,14 +4,16 @@ import matplotlib.pyplot as plt
 import os
 import io
 
+
+
 def new_log(base_path,base_name,style=True,args=None):
     name = base_name
 
-    folder_path = os.path.join(base_path ,args.data)
+    folder_path = os.path.join(base_path,args.data) 
     if not os.path.isdir(folder_path):
         os.mkdir(folder_path)
     
-    folder_path = os.path.join(folder_path ,base_name)
+    folder_path = os.path.join(folder_path,base_name)
     if not os.path.isdir(folder_path):
         os.mkdir(folder_path)
 
@@ -19,10 +21,8 @@ def new_log(base_path,base_name,style=True,args=None):
     n_exp = len(previous_runs)
 
     experiment_folder = os.path.join(folder_path,"experiment_{}".format(n_exp))
-    experiment_folder = folder_path
-    
-    if not os.path.isdir(experiment_folder):
-        os.mkdir(experiment_folder)
+
+    os.mkdir(experiment_folder)
 
     if args is not None:
         args_dict = args.__dict__
