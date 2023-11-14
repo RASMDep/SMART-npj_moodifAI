@@ -19,8 +19,10 @@ import numpy as np
 mapping = {
     'MORNING_INTERVENTION': 0,
     'morning': 0,
+    'MORNING': 0,
     'kss_mood': 0.5,
-    'evening': 1
+    'evening': 1,
+    'EVENING': 1
 }
 
 ids_p = ['SMART_201', 'SMART_001', 'SMART_003', 'SMART_004', 'SMART_006', 'SMART_008', 'SMART_009', 'SMART_007', 'SMART_010', 'SMART_012', 'SMART_015', 'SMART_016', 'SMART_018', 'SMART_019']
@@ -36,10 +38,8 @@ def get_data(args):
     target = args.target
 
     if args.test_subject != "none":
-        # Open the pickle file for reading in binary mode
-        with open(os.path.join(data_dir,data_file), 'rb') as file:
-            # Load the data from the pickle file
-            data = pickle.load(file)
+
+        data = pd.read_pickle(os.path.join(data_dir,data_file))
 
         data_all = pd.DataFrame(data.copy()).transpose()
         data_all = data_all[data_all.Participant_ID!=args.test_subject]
@@ -61,10 +61,9 @@ def get_data(args):
         dataset_test = ecgDataset(data_test, args, test_idx) # create your datset
 
     else:
-                # Open the pickle file for reading in binary mode
-        with open(os.path.join(data_dir,data_file), 'rb') as file:
-            # Load the data from the pickle file
-            data = pickle.load(file)
+        
+        data = pd.read_pickle(os.path.join(data_dir,data_file))
+
 
         data_all = pd.DataFrame(data.copy()).transpose()
         data_all = data_all.reset_index()
@@ -96,9 +95,9 @@ class ecgDataset(torch.utils.data.Dataset):
         self.x_data = data['HR_Data'].copy()
         self.RMSSD_Data = data['RMSSD_Data'].copy()
         self.SampEn_Data = data['SampEn_Data'].copy()
-        self.activity_counts = data['activity_counts'].copy()
-        self.step_count = data['step_count'].copy()
-        self.run_walk_time = data['run_walk_time'].copy()
+        #self.activity_counts = data['activity_counts'].copy()
+        #self.step_count = data['step_count'].copy()
+        #self.run_walk_time = data['run_walk_time'].copy()
         self.y_data = data[args.target].copy()
         self.day_part = data['quest_type'].copy()
         self.depression = data['depression'].copy()
@@ -107,16 +106,16 @@ class ecgDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
 
         x1 = np.asarray(self.x_data[index])
-        #x1 = (x1 - 33) / (180 - 33)
-        x1 = (x1 - np.nanmean(x1)) / (np.nanstd(x1))
+        x1 = (x1 - 33) / (180 - 33)
+        #x1 = (x1 - np.nanmean(x1)) / (np.nanstd(x1))
 
-        x2 = np.asarray(self.activity_counts[index])
+        #x2 = np.asarray(self.activity_counts[index])
         #x2 = (x2 - np.nanmean(x2)) / (np.nanstd(x2))
-        x2 = x2/400
+        #x2 = x2/400
 
         x3 = np.asarray(self.RMSSD_Data[index])
         #x3 = x3/1000
-        #x3 = (x3 - np.nanmean(x3)) / (np.nanstd(x3))
+        x3 = (x3 - np.nanmean(x3)) / (np.nanstd(x3))
 
         x4 = np.asarray(self.SampEn_Data[index])
         #x4 = (x4 - np.nanmean(x4)) / (np.nanstd(x4))
@@ -124,7 +123,7 @@ class ecgDataset(torch.utils.data.Dataset):
 
         x=np.zeros((2,288))
         x[0,0:len(x1)] = x1
-        x[1,0:len(x2)] = x2
+        x[1,0:len(x4)] = x4
         #x[2,0:len(x2)] = x3 
         #x[3,0:len(x2)] = x4
         x = np.nan_to_num(x, nan=0)
@@ -138,14 +137,13 @@ class ecgDataset(torch.utils.data.Dataset):
 
         #covariates = torch.ones((1,1,1))
         #covariates =  torch.tensor( mapping.get(self.day_part[index])).view(1)
-        #covariates =  torch.tensor( self.depression[index]).view(1)
-        covariates =   torch.tensor( [mapping.get(self.day_part[index]), self.depression[index]]).view(2)
+        covariates =  torch.tensor( self.depression[index]).view(1)
+        #covariates =   torch.tensor( [mapping.get(self.day_part[index]), self.depression[index]]).view(2)
         hea_file_name = " "
 
   
         sample = {
             'x': x,
-            #'x2': x2,
             'label':y,
             'covariates':covariates,
             'name': hea_file_name,

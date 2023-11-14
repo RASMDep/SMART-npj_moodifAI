@@ -6,129 +6,167 @@ import numpy as np
 import pytz
 
 
-# Define data directories
-data_dir = "/home/gdapoian/Ambizione/01_Confidential_Data/SMART_derived_features/"
+class DataProcessor:
+    def __init__(self, data_dir, out_dir, perc_missing, ids_p):
+        self.data_dir = data_dir
+        self.out_dir = out_dir
+        self.perc_missing = perc_missing
+        self.ids_p = ids_p
 
-# Specify the filename for your pickle file
-out_dir = data_dir
-
-# Specify % of missing data 
-
-perc_missing = 25
-
-#####################################################
-#####################################################
-#####################################################
-
-# Constants
-ids_p = ['SMART_201', 'SMART_001', 'SMART_003', 'SMART_004', 'SMART_006', 'SMART_008', 'SMART_009', 'SMART_007', 'SMART_010', 
-         'SMART_012', 'SMART_015', 'SMART_016', 'SMART_018', 'SMART_019']
-
-def get_three_level_value(value):
-    if value <= 2:
-        return 0
-    elif value <= 4:
-        return 1
-    else:
-        return 2
-
-def nan_percentage(arr):
-    nan_count = np.isnan(arr).sum()
-    total_elements = arr.size
-    return (nan_count / total_elements) * 100
-
-def load_and_resample(data_dir, pid, subfolder, filename, freq, start_time, end_time):
-    df = pd.read_csv(os.path.join(data_dir, pid, subfolder, filename))
-    df['t_start_utc'] = pd.to_datetime(df['t_start_utc'], utc=True)
-    df['t_start_utc'] = df['t_start_utc'].dt.floor(freq)
-    df = df.set_index('t_start_utc')  
-    resampled_df = df.resample(freq).asfreq()
-    return resampled_df[(resampled_df.index >= start_time) & (resampled_df.index < end_time)].reset_index()
-
-def process_participant(data_dir, questionnaire_answers, ids_p, out_dir, perc_missing):
-    dataset = {}
-    depression_mapping = {pid: 1 if pid in ids_p else 0 for pid in questionnaire_answers['key_smart_id'].unique()}
-    
-    for pid in tqdm.tqdm(questionnaire_answers['key_smart_id'].unique()):
-        if pid in ids_p:
-            depression = 1
+    @staticmethod
+    def get_three_level_value(value):
+        if value <= 2:
+            return 0
+        elif value <= 4:
+            return 1
         else:
-            depression = 0
+            return 2
 
-        try:
-            iter = 0
-            # Load and merge questionnaire files
-            quest = questionnaire_answers[questionnaire_answers.key_smart_id == pid]
+    @staticmethod
+    def nan_percentage(arr):
+        nan_count = np.isnan(arr).sum()
+        total_elements = arr.size
+        return (nan_count / total_elements) * 100
 
-            for _, row in quest.iterrows():
-                quest_time_utc = row['value.time']
-                start_time = pd.to_datetime(quest_time_utc, unit='s', utc=True)
-                start_time_hours_before = (start_time - pd.Timedelta(hours=24)).replace(tzinfo=pytz.UTC)
-                end_time = pd.to_datetime(quest_time_utc, unit='s').replace(tzinfo=pytz.UTC)
+    @staticmethod
+    def load_and_resample(data_dir, pid, subfolder, filename, freq, start_time, end_time):
+        df = pd.read_csv(os.path.join(data_dir, pid, subfolder, filename))
+        df['t_start_utc'] = pd.to_datetime(df['t_start_utc'], utc=True)
+        df['t_start_utc'] = df['t_start_utc'].dt.floor(freq)
+        df = df.set_index('t_start_utc')
+        resampled_df = df.resample(freq).asfreq()
+        return resampled_df[(resampled_df.index >= start_time) & (resampled_df.index < end_time)].reset_index()
 
-                filtered_hrv = load_and_resample(data_dir, pid, 'hrvmetrics', f"{pid}_hrvmetrics_winlen5_overlap_0.csv", '5T', start_time_hours_before, end_time)
-                if nan_percentage(filtered_hrv['HRV_MeanNN']) > perc_missing:
-                    continue
+    def process_participant(self, questionnaire_answers, include_acc=False, include_gps=False):
+        dataset = {}
+        data_used = ["HRV"]
 
-                filtered_acc = load_and_resample(data_dir, pid, 'accmetrics', f"{pid}_accmetrics_winlen_5.csv", '5T', start_time_hours_before, end_time)
-                #filtered_gps = load_and_resample(data_dir, pid, 'gpsmetrics', f"{pid}_gpsmetrics_winlen_60.csv", '60T', start_time_24_hours_before, end_time)
+        for pid in tqdm.tqdm(questionnaire_answers['key_smart_id'].unique()):
+            if pid in self.ids_p:
+                depression = 1
+            else:
+                depression = 0
 
-                entry = {
-                    'Participant_ID': pid,
-                    'Date': quest_time_utc,
-                    'HR_Data': 60000 / filtered_hrv['HRV_MeanNN'],
-                    'RMSSD_Data': filtered_hrv['HRV_RMSSD'],
-                    'SampEn_Data': filtered_hrv['HRV_SampEn'],
-                    'activity_counts': filtered_acc['activity_counts'],
-                    'cadence': filtered_acc['cadence'],
-                    'step_count': filtered_acc['step_count'],
-                    'run_walk_time': filtered_acc['run_walk_time'],
-                    #'time_home': filtered_gps['time_home'],
-                    #"gyration": filtered_gps['gyration'],
-                    #"max_loc_home": filtered_gps['max_loc_home'],
-                    #"rand_entropy": filtered_gps['rand_entropy'],
-                    #"real_entropy": filtered_gps['real_entropy'],
-                    #"max_dist": filtered_gps['max_dist'],
-                    #"nr_visits": filtered_gps['nr_visits'],
-                    #"rand_entropy": filtered_gps['rand_entropy'],
-                    'quest_type': row['value.name'],
-                    'imq1': row['imq_1.value'],
-                    'imq2': 6 - row['imq_2.value'],
-                    'imq3': row['imq_3.value'],
-                    'imq4': 6 - row['imq_4.value'],
-                    'imq5': row['imq_5.value'],
-                    'imq6': 6 - row['imq_6.value'],
-                    'kss': row['kss.value'],
-                    'arousal_class': get_three_level_value((row['imq_1.value'] + (6 - row['imq_4.value'])) / 2),
-                    'valence_class': get_three_level_value(((6 - row['imq_2.value']) + row['imq_5.value']) / 2),
-                    'arousal_level': (row['imq_1.value'] + (6 - row['imq_4.value'])) / 2,
-                    'valence_level': ((6 - row['imq_2.value']) + row['imq_5.value']) / 2,
-                    'mood1': row['mood_1.value'],
-                    'mood2': row['mood_2.value'],
-                    'depression': depression
-                }
+            try:
+                iter = 0
+                # Load and merge questionnaire files
+                quest = questionnaire_answers[questionnaire_answers.key_smart_id == pid]
 
-                dataset[(pid, iter)] = entry
-                iter += 1
+                for _, row in quest.iterrows():
+                    quest_time_utc = row['value.time']
+                    start_time = pd.to_datetime(quest_time_utc, unit='s', utc=True)
+                    start_time_hours_before = (start_time - pd.Timedelta(hours=24)).replace(tzinfo=pytz.UTC)
+                    end_time = pd.to_datetime(quest_time_utc, unit='s').replace(tzinfo=pytz.UTC)
 
-            # Save the dataset using pickle
-            with open(os.path.join(out_dir, "HRV_ACC_timeseries_24hour_clean_" + str(perc_missing) +"percent.pkl"), 'wb') as file:
-                pickle.dump(dataset, file)
+                    filtered_hrv = self.load_and_resample(
+                        self.data_dir, pid, 'hrvmetrics', f"{pid}_hrvmetrics_winlen5_overlap_0.csv", '5T',
+                        start_time_hours_before, end_time
+                    )
+                    if self.nan_percentage(filtered_hrv['HRV_MeanNN']) > self.perc_missing:
+                        continue
 
-        except Exception as e:
-           print(pid)
-           print(f"An error occurred: {e}")
-           continue
+                    # Conditionally load and resample acc and gps
+                    if include_acc:
+                        filtered_acc = self.load_and_resample(
+                            self.data_dir, pid, 'accmetrics', f"{pid}_accmetrics_winlen_5.csv", '5T',
+                            start_time_hours_before, end_time
+                        )
+                        data_used.append('ACC')
+
+                    if include_gps:
+                        filtered_gps = self.load_and_resample(
+                            self.data_dir, pid, 'gpsmetrics', f"{pid}_gpsmetrics_winlen_60.csv", '60T',
+                            start_time_hours_before, end_time
+                        )
+                        data_used.append('GPS')
 
 
-# Load and merge questionnaire files
-questionnaire_files = [
-    "morning_questionnaire_allparticipants.csv",
-    "afternoon_questionnaire_allparticipants.csv",
-    "evening_questionnaire_allparticipants.csv"
-]
+                    entry = {
+                        'Participant_ID': pid,
+                        'Date': quest_time_utc,
+                        'HR_Data': 60000 / filtered_hrv['HRV_MeanNN'],
+                        'RMSSD_Data': filtered_hrv['HRV_RMSSD'],
+                        'SampEn_Data': filtered_hrv['HRV_SampEn'],
+                        'quest_type': row['value.name'],
+                        'imq1': row['imq_1.value'],
+                        'imq2': 6 - row['imq_2.value'],
+                        'imq3': row['imq_3.value'],
+                        'imq4': 6 - row['imq_4.value'],
+                        'imq5': row['imq_5.value'],
+                        'imq6': 6 - row['imq_6.value'],
+                        'kss': row['kss.value'],
+                        'arousal_class': self.get_three_level_value((row['imq_1.value'] + (6 - row['imq_4.value'])) / 2),
+                        'valence_class': self.get_three_level_value(((6 - row['imq_2.value']) + row['imq_5.value']) / 2),
+                        'arousal_level': (row['imq_1.value'] + (6 - row['imq_4.value'])) / 2,
+                        'valence_level': ((6 - row['imq_2.value']) + row['imq_5.value']) / 2,
+                        'mood1': row['mood_1.value'],
+                        'mood2': row['mood_2.value'],
+                        'depression': depression
+                    }
 
-questionnaire_answers = pd.concat([pd.read_csv(os.path.join(data_dir, "questionnaires", file)) for file in questionnaire_files])
+                    # Add acc and gps data if conditions are met
+                    if include_acc:
+                        entry['activity_counts'] = filtered_acc['activity_counts']
+                        entry['cadence'] = filtered_acc['cadence']
+                        entry['step_count'] = filtered_acc['step_count']
+                        entry['run_walk_time'] = filtered_acc['run_walk_time']
 
-# Process participants
-process_participant(data_dir, questionnaire_answers, ids_p, out_dir, perc_missing)
+                    if include_gps:
+                        entry['time_home'] = filtered_gps['time_home']
+                        entry['gyration'] = filtered_gps['gyration']
+                        entry['max_loc_home'] = filtered_gps['max_loc_home']
+                        entry['rand_entropy'] = filtered_gps['rand_entropy']
+                        entry['real_entropy'] = filtered_gps['real_entropy']
+                        entry['max_dist'] = filtered_gps['max_dist']
+                        entry['nr_visits'] = filtered_gps['nr_visits']
+                        entry['rand_entropy'] = filtered_gps['rand_entropy']
+
+
+                    dataset[(pid, iter)] = entry
+                    iter += 1
+
+                # Save the dataset using pickle
+                filename = f"{'_'.join(data_used)}_timeseries_24hour_clean_{self.perc_missing}percent.pkl"
+                with open(os.path.join(self.out_dir, filename), 'wb') as file:
+                    pickle.dump(dataset, file)
+
+            except Exception as e:
+                print(pid)
+                print(f"An error occurred: {e}")
+                continue
+
+
+def main(include_pilot_data=True, include_acc=False, include_gps=False):
+    # Define data directories
+    data_dir = "/Users/giulia/Desktop/SMART_derived_features"
+    out_dir = data_dir
+    perc_missing = 25
+    ids_p = ['SMART_201', 'SMART_001', 'SMART_003', 'SMART_004', 'SMART_006', 'SMART_008', 'SMART_009', 'SMART_007',
+            'SMART_010', 'SMART_012', 'SMART_015', 'SMART_016', 'SMART_018', 'SMART_019']
+
+    # Specify questionnaire files
+    questionnaire_files = [
+        "morning_questionnaire_allparticipants.csv",
+        "afternoon_questionnaire_allparticipants.csv",
+        "evening_questionnaire_allparticipants.csv",
+    ]
+
+    if include_pilot_data:
+        questionnaire_files += [
+            "morning_questionnaire_allparticipants_pilot.csv",
+            "afternoon_questionnaire_allparticipants_pilot.csv",
+            "evening_questionnaire_allparticipants_pilot.csv",
+        ]
+
+    # Load and merge questionnaire files
+    questionnaire_answers = pd.concat([pd.read_csv(os.path.join(data_dir, "questionnaires", file)) for file in questionnaire_files])
+
+    # Create an instance of the DataProcessor class
+    data_processor = DataProcessor(data_dir, out_dir, perc_missing, ids_p)
+
+    # Process participants
+    data_processor.process_participant(questionnaire_answers,include_acc=include_acc, include_gps=include_gps)
+
+
+# Example usage
+main(include_pilot_data=True,include_acc=False, include_gps=False)  # Set to True if you want to include pilot data

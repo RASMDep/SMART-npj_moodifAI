@@ -68,7 +68,6 @@ class Conv1dNet(torch.nn.Module):
 
         z = z.squeeze(0)  # Remove the sequence length dimension
 
-
         z = self.l7(z)
 
         return z 
