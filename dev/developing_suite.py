@@ -132,7 +132,7 @@ parser.add_argument( "--weight-decay",
 parser.add_argument( "--model",
                     type=str,
                     default='LeNet',
-                    choices=['Conv1dNet', 'LSTMNet', 'Conv1dNet_10s', 'Transformer', 'LSTM', 'TCN', 'ResNet1d', 'twoConv1dNet_MLP'],
+                    choices=['Conv1dNet', 'AttConv1dNet'],
                     help='Model to use [default=%(default)s].')
 parser.add_argument("--n-channels",
                     type=int,
