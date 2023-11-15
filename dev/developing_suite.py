@@ -66,11 +66,11 @@ parser.add_argument("--n-kfold", type=int, default=5, help="How many folds?")
 ### data parameters ################################################
 parser.add_argument("--target",
                     type=str,
-                    choices=["valence_class", "arousal_class"],
+                    choices=["valence_class", "arousal_class", "depression"],
                     help="classification target")
 parser.add_argument("--data",
                     type=str,
-                    choices=["passive_data"],
+                    choices=["patch_data"],
                     help="dataset selection")
 parser.add_argument("--data-file",
                     type=str,
@@ -421,6 +421,10 @@ class DevelopingSuite(object):
             self.device)  # <-- changed so it is automatic
         targets_all = torch.zeros(0).to(
             self.device)  # <-- changed so it is automatic
+        scores_all = torch.zeros(0).to(
+            self.device)  # <-- changed so it is automatic
+        gt_all = torch.zeros(0).to(
+            self.device)  # <-- changed so it is automatic
 
         tot = 0
 
@@ -444,8 +448,10 @@ class DevelopingSuite(object):
                 y_pred_binary = torch.argmax(y_pred,dim=1)
                 outputs_all= torch.cat((outputs_all, y_pred_binary), 0)
                 targets_all = torch.cat((targets_all, y,), 0)
+                scores_all = torch.cat((scores_all, y_pred,), 0)
+                gt_all = torch.cat((gt_all, sample["label"],), 0)
 
-        return outputs_all,targets_all
+        return outputs_all,targets_all,gt_all,scores_all
 
 
 if __name__ == '__main__':
