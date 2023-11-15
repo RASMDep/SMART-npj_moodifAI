@@ -12,8 +12,9 @@ This repository contains code for a machine learning project focused on predicti
 
 ## Data File
 
-- **File Name:** `HRV_ACC_timeseries_24hour_clean_25percent_smart.pkl`
-- **Location:** `/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper-code`
+- **Location:** `/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper`
+- **File Name(s):** `HRV_ACC_timeseries_24hour_clean_25percent_smart.pkl`
+
 
 This file contains preprocessed HRV and ACC time series data, and it serves as the input for the machine learning models developed in this project.
 
