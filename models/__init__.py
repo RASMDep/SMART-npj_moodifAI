@@ -9,7 +9,7 @@ def get_model(args,data=None):
         print(args.model)
         model = model_Conv1dNet.Conv1dNet(args)
     elif args.model == 'AttConv1dNet':
-        model = model.model_Conv1dNet_with_attention.Conv1dNet(args)
+        model = model_Conv1dNet_with_attention.Conv1dNet(args)
     else:
         raise NotImplementedError
     

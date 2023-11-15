@@ -5,6 +5,8 @@ import torch.nn as nn
 from typing import Optional, Sequence
 from torch import Tensor
 from loss_functions.losses import AsymmetricLoss
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
 
 class Conv1dNet(torch.nn.Module):
 
@@ -56,9 +58,36 @@ class Conv1dNet(torch.nn.Module):
         z = self.block5(z)
 
         # Apply attention mechanism
-        #z = z.permute(2, 0, 1)  # Change the order of dimensions
-        #z, _ = self.attention_layer(z, z, z)  # Self-attention
-        #z = z.permute(1, 2, 0)  # Change the order of dimensions back
+        z = z.permute(2, 0, 1)  # Change the order of dimensions
+        z, attention_weights = self.attention_layer(z, z, z)  # Self-attention
+        z = z.permute(1, 2, 0)  # Change the order of dimensions back
+
+        plotting=0
+        if plotting==1:
+
+            # Choose a specific attention head to visualize
+            head_to_visualize = 0
+
+            # Plot the attention map for a specific head
+            plt.figure(figsize=(12, 8))
+            plt.subplot(2, 1, 1)
+            plt.imshow(attention_weights[head_to_visualize].detach().cpu().numpy(), aspect='auto')
+            plt.title(f'Attention Map - Head {head_to_visualize}')
+            plt.xlabel('Input Sequence Position')
+            plt.ylabel('Output Sequence Position')
+
+            # Overlay attention weights on the original input
+            plt.subplot(2, 1, 2)
+            plt.plot(x[4].detach().cpu().numpy().transpose(), label='Original Input')
+            plt.title('Original Input with Attention Weights')
+            plt.xlabel('Input Sequence Position')
+            plt.legend()
+
+            plt.show()
+
+
+
+
 
         #z = z*mask_d + (1-mask_d)*(-1e6)
         z = self.lastpool(z).squeeze(2)
