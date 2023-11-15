@@ -1,11 +1,9 @@
 from dev.developing_suite import DevelopingSuite
 from dev.developing_suite import *
 import sklearn.metrics  as skm
-#from torchmetrics.classification import MulticlassCohenKappa
 
-
-data_dir="/Users/giulia/Desktop/SMART_derived_features"
-save_dir="/Users/giulia/Desktop/SMART_derived_features"
+data_dir="/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper"
+save_dir="/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper"
 data_file= "HRV_ACC_timeseries_24hour_clean_25percent_smart.pkl"
 model_dir = './runs'
 save_dir = './results'
@@ -20,7 +18,7 @@ str_args = [
         "--model=Conv1dNet",
         "--num-class=3",
         "--n-kfold=10",
-        "--fold-test=3",
+        "--fold-test=2",
         "--test-subject=none",
         "--per-change=0",
         "--loss=BCE",

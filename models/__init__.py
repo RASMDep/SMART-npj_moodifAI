@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from models import model_Conv1dNet, lstm
+from models import model_Conv1dNet
 
 def get_model(args,data=None):
 
