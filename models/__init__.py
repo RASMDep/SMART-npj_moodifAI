@@ -8,8 +8,6 @@ def get_model(args,data=None):
     if args.model == 'Conv1dNet': 
         print(args.model)
         model = model_Conv1dNet.Conv1dNet(args)
-    elif args.model == 'LSTMNet': 
-        model = lstm.LSTMNet(args)
     else:
         raise NotImplementedError
     

@@ -167,6 +167,8 @@ parser.add_argument("--less-features",
                     default=False, action="store_true",
                     help='extra layes in ConvNet for fewer features output')
 
+
+
 class DevelopingSuite(object):
     def __init__(self, args):
 
@@ -176,21 +178,15 @@ class DevelopingSuite(object):
         self.data_train, self.data_val, self.data_test = get_data(args)
 
         # Define torch dataloader object
-        self.train_dataloader = DataLoader(self.data_train,
-                                           batch_size=args.batch_size,
-                                           num_workers=args.num_workers,
-                                           drop_last=True,
-                                           shuffle=True)
-        self.val_dataloader = DataLoader(self.data_train,
-                                         batch_size=args.batch_size,
-                                         num_workers=args.num_workers)
+        self.train_dataloader = DataLoader(self.data_train, batch_size=args.batch_size,num_workers=args.num_workers, 
+                                           drop_last=True,shuffle=True)
+        self.val_dataloader = DataLoader(self.data_train, args.batch_size,num_workers=args.num_workers)
 
         #args.n_covariates = 0 
 
         # Use GPU if available
         print('GPU devices available:', torch.cuda.device_count())
-        self.device = torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print('Using device:', self.device)
 
         self.model = get_model(args)
@@ -225,7 +221,6 @@ class DevelopingSuite(object):
             if args.scheduler == "exp":
                 self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
                     self.optimizer, gamma=self.args.scheduler_decay_factor)
-                #self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=1, factor=args.lr_decay_factor, mode='max', verbose=True)
             elif args.scheduler == "no":
                 self.scheduler = None
             else:
@@ -289,9 +284,6 @@ class DevelopingSuite(object):
                 self.optimizer.zero_grad()
                 
                 pred_y = self.model(x,cov)
-                y_pred_binary = 0.5 * (torch.sign(torch.sigmoid(pred_y) - 0.5)
-                                       + 1).to(self.device)
-
                 loss = self.model.loss(pred_y,y) 
 
                 # Backward pass
@@ -352,9 +344,6 @@ class DevelopingSuite(object):
 
                 batch_size = x1.size(0)
                 pred_y = self.model(x1, cov)
-                y_pred_binary = 0.5 * (torch.sign(torch.sigmoid(pred_y) - 0.5)
-                                       + 1).to(self.device)
-
                 # Add metrics of current batch
                 total_dataset_size += batch_size
                 total_loss += (self.model.loss(pred_y,y)  
@@ -417,14 +406,10 @@ class DevelopingSuite(object):
         pos = torch.zeros(1).to(
             self.device)  # <-- changed so it is automatic
 
-        outputs_all= torch.zeros(0).to(
-            self.device)  # <-- changed so it is automatic
-        targets_all = torch.zeros(0).to(
-            self.device)  # <-- changed so it is automatic
-        scores_all = torch.zeros(0).to(
-            self.device)  # <-- changed so it is automatic
-        gt_all = torch.zeros(0).to(
-            self.device)  # <-- changed so it is automatic
+        outputs_all= torch.zeros(0).to(self.device)  # <-- changed so it is automatic
+        targets_all = torch.zeros(0).to(self.device)  # <-- changed so it is automatic
+        scores_all = torch.zeros(0).to(self.device)  # <-- changed so it is automatic
+        gt_all = torch.zeros(0).to(self.device)  # <-- changed so it is automatic
 
         tot = 0
 
@@ -449,7 +434,7 @@ class DevelopingSuite(object):
                 outputs_all= torch.cat((outputs_all, y_pred_binary), 0)
                 targets_all = torch.cat((targets_all, y,), 0)
                 scores_all = torch.cat((scores_all, y_pred,), 0)
-                gt_all = torch.cat((gt_all, sample["label"],), 0)
+                gt_all = torch.cat((gt_all, sample["label"].to(self.device),), 0)
 
         return outputs_all,targets_all,gt_all,scores_all
 
