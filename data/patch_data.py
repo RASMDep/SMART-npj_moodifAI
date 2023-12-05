@@ -113,7 +113,8 @@ class patchDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
 
         x1 = np.asarray(self.x_data[index])
-        x1 = (x1 - 33) / (180 - 33)
+        #x1 = (x1 - 33) / (180 - 33)
+        x1 = (x1 - np.nanmin(x1)) / (np.nanmax(x1)-np.nanmin(x1))
 
         x2 = np.asarray(self.activity_counts[index])
         x2 = (x2 - 0) / (1000-0)
@@ -145,15 +146,13 @@ class patchDataset(torch.utils.data.Dataset):
         x = np.nan_to_num(x, nan=0)
 
         x = torch.from_numpy(x).float()
-        #y = torch.from_numpy(np.asarray(self.y_data[index])).float()
         y = torch.zeros((self.num_class))
         y[int(self.y_data[index])] = 1
 
         mask = torch.ones((1,1,1))
 
-        #covariates = torch.ones((1,1,1))
-        #covariates =  torch.tensor( mapping.get(self.day_part[index])).view(1)
-        covariates =  torch.tensor( self.depression[index]).view(1)
+        covariates = torch.ones((1,1,1))
+        #covariates =  torch.tensor( self.depession[index]).view(1)
         hea_file_name = " "
 
   
