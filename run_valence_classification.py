@@ -2,9 +2,9 @@ from dev.developing_suite import DevelopingSuite
 from dev.developing_suite import *
 import sklearn.metrics  as skm
 
-data_dir="/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper"
-save_dir="/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper"
-data_file= "HRV_ACC_timeseries_24hour_clean_25percent_smart.pkl"
+data_dir="/Users/crisgallego/Documents/phd/00_Data/02_SMART_STUDY"
+save_dir="/Users/crisgallego/Documents/phd/00_Data/02_SMART_STUDY"
+data_file= "ACC_RR_timeseries_24hour_clean_25percent_tightclasses_291123.pkl"
 model_dir = './runs'
 save_dir = './results'
 target = "valence_class"
@@ -14,7 +14,7 @@ target = "valence_class"
 common_args = [
     "--target=" + target,
     "--mode=train",
-    "--n-channels=2",
+    "--n-channels=3",
     "--data=patch_data",
     "--model=Conv1dNet",
     "--num-class=3",
@@ -39,6 +39,7 @@ common_args = [
 # Lists to store results
 auroc_scores_list = []
 auprc_scores_list = []
+cm_normalized_list = []
 
 # Cross-validation loop
 for fold in range(0, 10):
@@ -54,8 +55,11 @@ for fold in range(0, 10):
     outputs_all, targets_all, y_true, y_scores = developingSuite.eval_model_stats()
 
     print(skm.classification_report(targets_all.cpu(), outputs_all.cpu()))
-    print(skm.confusion_matrix(outputs_all.cpu(), targets_all.cpu()))
+    cm = skm.confusion_matrix(outputs_all.cpu(), targets_all.cpu())
+    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    print(cm_normalized)
 
+    cm_normalized_list.append(cm_normalized)
     y_true = y_true.cpu()
     y_scores = y_scores.cpu()
 

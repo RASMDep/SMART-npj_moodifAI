@@ -66,7 +66,7 @@ parser.add_argument("--n-kfold", type=int, default=5, help="How many folds?")
 ### data parameters ################################################
 parser.add_argument("--target",
                     type=str,
-                    choices=["valence_class", "arousal_class", "depression"],
+                    choices=["valence_class", "arousal_class", "depression","kss_class"],
                     help="classification target")
 parser.add_argument("--data",
                     type=str,

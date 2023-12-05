@@ -23,7 +23,7 @@ class Conv1dNet(torch.nn.Module):
         self.criterion = nn.CrossEntropyLoss()
 
         # Define the attention mechanism
-        self.attention_layer = nn.MultiheadAttention(embed_dim=256, num_heads=4)
+        self.attention_layer = nn.MultiheadAttention(embed_dim=256, num_heads=2)
 
         # 12 is the input space in terms of ECG leads, 16 is the output space corresponding to the new features
         # Conv1d(input size==ecg channels, outputs size , filter size)
