@@ -7,17 +7,18 @@ import pytz
 
 
 class DataProcessor:
-    def __init__(self, data_dir, out_dir, perc_missing, ids_p):
+    def __init__(self, data_dir, out_dir, perc_missing, ids_p,ids_male):
         self.data_dir = data_dir
         self.out_dir = out_dir
         self.perc_missing = perc_missing
         self.ids_p = ids_p
+        self.ids_male = ids_male
 
     @staticmethod
     def get_three_level_value(value):
-        if value <= 2.5:
+        if value <= 2:
             return 0
-        elif value <= 3.5:
+        elif value <= 4:
             return 1
         else:
             return 2
@@ -68,6 +69,11 @@ class DataProcessor:
                 depression = 1
             else:
                 depression = 0
+            
+            if pid in self.ids_male:
+                male = 1
+            else:
+                male = 0
 
             try:
                 iter = 0
@@ -129,7 +135,8 @@ class DataProcessor:
                         'valence_level': ((6 - row['imq_2.value']) + row['imq_5.value']) / 2,
                         'mood1': row['mood_1.value'],
                         'mood2': row['mood_2.value'],
-                        'depression': depression
+                        'depression': depression,
+                        'male': male,
                     }
 
 
@@ -158,7 +165,7 @@ class DataProcessor:
                     iter += 1
 
                 # Save the dataset using pickle
-                filename = f"{'_'.join(data_used)}_timeseries_24hour_clean_{self.perc_missing}percent_tightclasses_291123.pkl"
+                filename = f"{'_'.join(data_used)}_timeseries_24hour_clean_{self.perc_missing}percent_classes_211223.pkl"
 
                 with open(os.path.join(self.out_dir, filename), 'wb') as file:
                     pickle.dump(dataset, file)
@@ -169,14 +176,17 @@ class DataProcessor:
                 continue
 
 
-def main(include_pilot_data=True, include_hrv =False, include_acc=False, include_gps=False, include_rr=False):
+def main(include_pilot_data=True, include_hrv =True, include_acc=True, include_gps=False, include_rr=True):
     # Define data directories
-    data_dir = "/Volumes/green_groups_sms_public/Projects_Current/Ambizione/01_Confidential_Data/read_only/SMART_derived_features"
+    data_dir = "/Users/crisgallego/desktop/SMART_derived_features"
     out_dir = "/Users/crisgallego/Documents/phd/00_Data/02_SMART_STUDY"
     perc_missing = 25
     ids_p = ['SMART_201', 'SMART_003', 'SMART_004','SMART_006', 'SMART_007','SMART_008', 'SMART_009','SMART_010', 
             'SMART_012','SMART_015', 'SMART_016','SMART_018','SMART_024',
-            'SMART_019','SMART_020','SMART_027']
+            'SMART_019','SMART_020','SMART_027','SMART_028']
+
+    ids_male = ['SMART_003','SMART_006','SMART_007','SMART_010','SMART_016','SMART_017','SMART_018','SMART_022','SMART_024',
+    'SMART_025','SMART_26','SMART_027']
 
     # Specify questionnaire files
     questionnaire_files = [
@@ -196,10 +206,10 @@ def main(include_pilot_data=True, include_hrv =False, include_acc=False, include
     questionnaire_answers = pd.concat([pd.read_csv(os.path.join(data_dir, "questionnaires", file)) for file in questionnaire_files])
 
     # Create an instance of the DataProcessor class
-    data_processor = DataProcessor(data_dir, out_dir, perc_missing, ids_p)
+    data_processor = DataProcessor(data_dir, out_dir, perc_missing, ids_p, ids_male)
 
     # Process participants
-    data_processor.process_participant(questionnaire_answers,include_acc=include_acc, include_gps=include_gps,include_rr=include_rr)
+    data_processor.process_participant(questionnaire_answers,include_hrv = include_hrv, include_acc=include_acc, include_gps=include_gps,include_rr=include_rr)
 
 
 # Example usage

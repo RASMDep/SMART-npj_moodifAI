@@ -4,70 +4,93 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.metrics as skm
 import seaborn as sns
+import pickle
+import os
 
 # Set Seaborn style
 sns.set(style="whitegrid", palette="muted")
 
-data_dir = "/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper"
-save_dir = "/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/10_Studies/2_SMART/Data/valence-arousal-paper"
-data_file = "HRV_ACC_timeseries_24hour_clean_25percent_smart.pkl"
+data_dir = "/run/user/1000/gvfs/smb-share:server=hest.nas.ethz.ch,share=green_groups_sms_public/Projects_Current/Ambizione/22_Code/MoodifAI"
+save_out_dir = ""
+data_file = "HRV_ACC_RR_timeseries_24hour_clean_25percent_classes_090124.pkl" # pkl file with your dataset
 model_dir = './runs'
 save_dir = './results'
-target = "valence_class"
+target = "kss_class" # target to classify (example: valence_class, arousal_class)
 
+combinations = ['hr','rmssd','en','act','rr','hr+rmssd','hr+en','hr+act','hr+rr','hr+rmssd+en','hr+act+rr','hr+rmssd+en+act','hr+rmssd+en+rr','hr+rmssd+en+act+rr']
+
+for comb in combinations:
 # Move the common arguments outside the loop
-common_args = [
-    "--target=" + target,
-    "--mode=train",
-    "--n-channels=3",
-    "--data=patch_data",
-    "--model=Conv1dNet",
-    "--num-class=3",
-    "--n-kfold=8",
-    "--test-subject=none",
-    "--model-filename=baseline",
-    "--save-dir=" + save_dir,
-    "--data-path=" + data_dir,
-    "--data-file=" + data_file,
-    "--n-covariates=0",
-    "--save-model=best",
-    "--mode=train",
-    "--epochs=30",
-    "--scheduler=exp",
-    "--batch-size=16",
-    "--logstep-train=4",
-    "--optimizer=adam",
-    "--lr=0.001",
-]
+    nchan = str(len(comb.split('+')))
+    common_args = [
+        "--target=" + target,
+        "--mode=train",
+        "--n-channels="+ nchan,
+        "--data=patch_data",
+        "--model=Conv1dNet",
+        "--num-class=3",
+        "--n-kfold=10",
+        "--test-subject=none",
+        "--model-filename=baseline",
+        "--save-dir=" + save_dir,
+        "--data-path=" + data_dir,
+        "--data-file=" + data_file,
+        "--n-covariates=0",
+        "--save-model=best",
+        "--mode=train",
+        "--epochs=30",
+        "--scheduler=exp",
+        "--batch-size=16",
+        "--logstep-train=4",
+        "--optimizer=adam",
+        "--lr=0.001",
+    ]
 
 # Lists to store results
-auroc_scores_list = []
-auprc_scores_list = []
-cm_normalized_list = []
+#auroc_scores_list = []
+#auprc_scores_list = []
 
 # Lists to store confusion matrices
-confusion_matrices = []
-
-# Lists to store confusion matrices
-confusion_matrices = []
+#confusion_matrices = []
 
 # Cross-validation loop
-for fold in range(0, 8):
-    # Modify the fold argument for each iteration
-    str_args = common_args + ["--fold-test=" + str(fold)]
-    args = parser.parse_args(str_args)
+out_data = {}
 
-    developingSuite = DevelopingSuite(args)
-    developingSuite.train_and_eval()
+for hour in range(1,24):
 
-    noise = 0
-    outputs_all, targets_all, y_true, y_scores = developingSuite.eval_model_stats()
+    for fold in range(0, 10):
+        # Modify the fold argument for each iteration
+        str_args = common_args + ["--fold-test=" + str(fold)]
+        args = parser.parse_args(str_args)
+        args.hour = hour
+        args.combs = comb
+        developingSuite = DevelopingSuite(args)
+        developingSuite.train_and_eval()
 
-    print(skm.classification_report(targets_all.cpu(), outputs_all.cpu()))
+        noise = 0
+        outputs_all, targets_all, y_true, y_scores = developingSuite.eval_model_stats()
+        entry = {
+        'outputs': outputs_all.cpu(),
+        'targets': targets_all.cpu(),
+        'y_true': y_true.cpu(),
+        'y_scores': y_scores.cpu()
+        }
+        out_data[fold]=entry
+
+        # Save the list of tensors to a pickle file
+        file_path = os.path.join(save_out_dir,'outputs_kss_HR_SampEn_RMSSD_RR_Aactivity_normalized.pkl')
+        with open(file_path, 'wb') as file:
+            pickle.dump(out_data, file)
+
+        print(skm.classification_report(targets_all.cpu(), outputs_all.cpu()))
+
+    '''
+
+    
     confusion_matrix = skm.confusion_matrix(outputs_all.cpu(), targets_all.cpu())
     confusion_matrices.append(confusion_matrix)
 
-    cm_normalized_list.append(cm_normalized)
+    #cm_normalized_list.append(cm_normalized)
     y_true = y_true.cpu()
     y_scores = y_scores.cpu()
 
@@ -163,3 +186,5 @@ plt.xlabel("Predicted")
 plt.ylabel("True")
 plt.title("Average Confusion Matrix Across Folds")
 plt.show()
+
+'''

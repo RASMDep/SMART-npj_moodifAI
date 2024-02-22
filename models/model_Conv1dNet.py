@@ -8,7 +8,7 @@ from loss_functions.losses import AsymmetricLoss
 
 class Conv1dNet(torch.nn.Module):
 
-    def __init__(self,args):
+    def __init__(self,args,class_weights):
         """
         In the constructor we instantiate four parameters and assign them as
         member parameters.
@@ -20,7 +20,7 @@ class Conv1dNet(torch.nn.Module):
         self.n_feat = args.n_covariates
 
         #self.criterion = nn.BCEWithLogitsLoss()#pos_weight=torch.tensor([0.7]))
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         
         # 12 is the input space in terms of ECG leads, 16 is the output space corresponding to the new features
         # Conv1d(input size==ecg channels, outputs size , filter size)
@@ -56,11 +56,8 @@ class Conv1dNet(torch.nn.Module):
         if self.n_feat>0:
             # add additional hand crafted features before last layer, do not forget to normalize these features (0 mean, 1 variance)
             z = torch.cat([z,covariates], dim = 1)
-        # Finally: multy layer percepton with one hidden layer and 1 linear layer for the classification
+        # Finally: multi layer percepton with one hidden layer and 1 linear layer for the classification
         z = self.block6(z)
-
-
-
 
 
         z = self.l7(z)

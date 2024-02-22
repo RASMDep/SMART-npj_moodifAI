@@ -175,7 +175,7 @@ class DevelopingSuite(object):
         self.args = args
         torch.manual_seed(0)
 
-        self.data_train, self.data_val, self.data_test = get_data(args)
+        self.data_train, self.data_val, self.data_test, self.class_weights = get_data(args)
 
         # Define torch dataloader object
         self.train_dataloader = DataLoader(self.data_train, batch_size=args.batch_size,num_workers=args.num_workers, 
@@ -189,7 +189,7 @@ class DevelopingSuite(object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print('Using device:', self.device)
 
-        self.model = get_model(args)
+        self.model = get_model(args,self.class_weights.to(self.device))
         self.model.to(self.device)
 
         self.experiment_folder = args.save_dir 
