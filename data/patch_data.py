@@ -1,227 +1,184 @@
-import random
 import numpy as np
 import torch
 import os
-import sys
-from torch.utils.data import TensorDataset, DataLoader
-from random import sample, shuffle
-from sklearn.model_selection import train_test_split, StratifiedKFold, GroupKFold
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.utils.class_weight import compute_class_weight
 import pandas as pd
-import pickle
-from scipy import signal
-from scipy.signal import medfilt
-import datetime
 import numpy as np
 
-
-# Dictionary mapping string values to numeric values
-mapping = {
-    'MORNING_INTERVENTION': 0,
-    'morning': 0,
-    'MORNING': 0,
-    'kss_mood': 0.5,
-    'evening': 1,
-    'EVENING': 1
-}
-
-ids_p = ['SMART_201', 'SMART_003', 'SMART_004','SMART_006', 'SMART_007','SMART_008', 'SMART_009','SMART_010', 
-        'SMART_012','SMART_015', 'SMART_016','SMART_018','SMART_024',
-        'SMART_019','SMART_020','SMART_027','SMART_028']
-
-
 def get_data(args):
+    
+    """
+    Load and process the dataset for training, validation, and testing. 
+    Handles data partitioning, class weight calculation, and subject-specific exclusions.
+    
+    Parameters:
+        args (Namespace): Argument namespace with paths, parameters, and configurations.
+
+    Returns:
+        tuple: Dataset objects for training, validation, and testing, along with class weights.
+    """
 
     # Read dataset
     data_dir = args.data_path 
-    data_file =args.data_file  # Replace with the actual file path
+    data_file =args.data_file 
     fold_test = args.fold_test
     n_kfold = args.n_kfold
     target = args.target
 
+    data = pd.read_pickle(os.path.join(data_dir,data_file))
+
     if args.test_subject != "none":
 
-        data = pd.read_pickle(os.path.join(data_dir,data_file))
-
         data_all = pd.DataFrame(data.copy()).transpose()
-        data_all = data_all[data_all.Participant_ID!=args.test_subject]
-        data_all = data_all.reset_index()
-        data_all = data_all.drop([ i for i in range(0,len(data_all)) if len(data_all.loc[i,"HR_Data"])<288])
+        data_all = data_all[data_all.Participant_ID != args.test_subject]
         data_all = data_all.reset_index(drop=True)
+        data_all = data_all[data_all['HR_Data'].apply(len) >= 288]  # Filter rows with insufficient data
 
-        cv = StratifiedKFold(n_splits=n_kfold, random_state = 48, shuffle =True)
+        # Set up cross-validation splits
+        cv = StratifiedKFold(n_splits=n_kfold, random_state=48, shuffle=True)
         yy = np.vstack(data_all[target][:])
-        train_idx, valid_idx = list(cv.split(data_all[target],yy))[fold_test]
+        class_weights = compute_class_weight('balanced', classes=[0, 1, 2], y=data_all[target][:])
+        class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32)
+        
+        train_idx, valid_idx = list(cv.split(data_all[target], yy))[fold_test]
 
-        data_test = pd.DataFrame(data.copy()).transpose()
-        data_test = data_test[data_test.Participant_ID==args.test_subject]
-        data_test = data_test.reset_index()
-        test_idx = data_test.index
+        # Prepare datasets
+        dataset_train = patchDataset(data_all, args, train_idx)
+        dataset_val = patchDataset(data_all, args, valid_idx)
 
-        dataset_train = patchDataset(data_all, args, train_idx)  # create your dataset
-        dataset_val = patchDataset(data_all, args, valid_idx) # create your dataset
-        dataset_test = patchDataset(data_test, args, test_idx) # create your dataset
+        # Prepare test dataset
+        data_test = data_all[data_all.Participant_ID == args.test_subject].reset_index(drop=True)
+        dataset_test = patchDataset(data_test, args, data_test.index)
 
     else:
         
-        data = pd.read_pickle(os.path.join(data_dir,data_file))
+        data_all = pd.DataFrame(data.copy()).transpose().reset_index(drop=True)
+        data_all = data_all[data_all['HR_Data'].apply(len) >= 288]  # Filter rows with insufficient data
 
-        data_all = pd.DataFrame(data.copy()).transpose()
-        data_all = data_all.reset_index()
-        data_all = data_all.drop([i for i in range(len(data_all)) if len(data_all.loc[i, "HR_Data"]) < 288])
-        data_all = data_all.reset_index(drop=True)  # Use drop=True to remove the old index column
-
-        cv = StratifiedKFold(n_splits=n_kfold, random_state = 48, shuffle =True)
+        # Set up cross-validation splits
+        cv = StratifiedKFold(n_splits=n_kfold, random_state=48, shuffle=True)
         yy = np.vstack(data_all[target][:])
-        class_weights = compute_class_weight('balanced',classes=[0,1,2],y=data_all[target][:])
+        class_weights = compute_class_weight('balanced', classes=[0, 1, 2], y=data_all[target][:])
         class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32)
-        train_idx1, test_idx = list(cv.split(data_all[target],yy))[fold_test]
-  
-        train_idx = train_idx1[int(len(train_idx1)/10):]
-        valid_idx = train_idx1[0:int(len(train_idx1)/10)]
 
-        dataset_train = patchDataset(data_all, args, train_idx)  # create your dataset
-        dataset_val = patchDataset(data_all, args, valid_idx) # create your dataset
-        dataset_test = patchDataset(data_all, args, test_idx) # create your dataset
+        train_idx1, test_idx = list(cv.split(data_all[target], yy))[fold_test]
+        train_idx, valid_idx = train_idx1[int(len(train_idx1) / 10):], train_idx1[:int(len(train_idx1) / 10)]
+
+        # Prepare datasets
+        dataset_train = patchDataset(data_all, args, train_idx)
+        dataset_val = patchDataset(data_all, args, valid_idx)
+        dataset_test = patchDataset(data_all, args, test_idx)
 
     return dataset_train, dataset_val,dataset_test,class_weights_tensor
 
 
 class patchDataset(torch.utils.data.Dataset):
 
-    def __init__(self,dataset,args, selected_idxs, mod=False):
+    """
+    Dataset class that processes and returns HR data and associated features for training/testing.
+
+    Attributes:
+        n_channels (int): Number of channels in the input data.
+        num_class (int): Number of target classes.
+        x_data (pd.Series): HR data.
+        y_data (pd.Series): Target labels.
+        ...
+    """
+
+    def __init__(self,dataset,args, selected_idxs):
 
         self.num_class = args.num_class
         self.n_channels = args.n_channels
-        data = dataset.loc[selected_idxs]
-        data = data.reset_index()
-        self.x_data = data['HR_Data'].copy()
-        self.minute = data['Minute'].copy()
-        self.RMSSD_Data = data['RMSSD_Data'].copy()
-        self.SampEn_Data = data['SampEn_Data'].copy()
-        self.activity_counts = data['activity_counts'].copy()
-        self.step_count = data['step_count'].copy()
-        self.resp_rate = data['resp_rate'].copy()
-        self.run_walk_time = data['run_walk_time'].copy()
-        self.y_data = data[args.target].copy()
-        self.day_part = data['quest_type'].copy()
-        self.depression = data['depression'].copy()
-        self.sex = data['male'].copy()
+        self.x_data = dataset.loc[selected_idxs, 'HR_Data'].reset_index(drop=True)
+        self.pid = dataset.loc[selected_idxs, 'Participant_ID']
+        self.time = dataset.loc[selected_idxs, 'Date']
+        self.y_data = dataset.loc[selected_idxs, args.target].reset_index(drop=True)
+        
+        # Other HRV and activity-related data
+        self.activity_counts = dataset.loc[selected_idxs, 'activity_counts']
+        self.step_count = dataset.loc[selected_idxs, 'step_count']
+        self.resp_rate = dataset.loc[selected_idxs, 'resp_rate']
+        self.depression = dataset.loc[selected_idxs, 'depression']
+        self.sex = dataset.loc[selected_idxs, 'male']
         self.hour = args.hour
         self.combs = args.combs
 
 
     def __getitem__(self, index):
+        """
+        Retrieve a data sample by index, process it, and return the features and label.
 
-        x1 = np.asarray(self.x_data[index])
-        x1 = (x1 - 33) / (180 - 33)
-        hr = x1[self.hour*12:]
+        Parameters:
+            index (int): Index of the sample to fetch.
 
-        x2 = np.asarray(self.activity_counts[index])
-        x2 = (x2 - 0) / (1000-0)
-        act = x2[self.hour*12:]
-
-        x3 = np.asarray(self.RMSSD_Data[index])
-        x3 = (x3 - 5) / (300 - 5)
-        rmssd = x3[self.hour*12:]
-
-        x4 = np.asarray(self.SampEn_Data[index])
-        x4 = (x4 - np.nanmin(x4)) / (np.nanmax(x4)-np.nanmin(x4))
-        x4 = (x4 - 0) / (1-0)
-        en = x4[self.hour*12:]
-
-        x5 = np.asarray(self.resp_rate[index])
-        x5 = (x5 - 12) / (25-12)
-        rr = x5[self.hour*12:]
-
-        #x6 = np.asarray(self.minute[index])
-        #x6 = (x6 - 0) / (1440 - 0)
-
-        mod_dict = {'hr':hr,'act':act,'rmssd':rmssd,'en':en,'rr':rr}
- 
-        x=np.zeros((self.n_channels,288))
-
-        if self.n_channels==1:
-
-            x1 = mod_dict[self.combs]
-            
-            x[0,0:len(x1)] = x1
+        Returns:
+            dict: Contains the features, labels, covariates, and metadata.
+        """
+        # Data transformation and normalization
+        data_dict = self._get_normalized_data(index)
         
-        elif self.n_channels==2:
+        # Build the final tensor
+        x = self._build_input_tensor(data_dict)
 
-            x1 = mod_dict[self.combs.split('+')[0]]
-            x2 = mod_dict[self.combs.split('+')[1]]
-
-            x[0,0:len(x1)] = x1
-            x[1,0:len(x2)] = x2
-        
-        elif self.n_channels==3:
-
-            x1 = mod_dict[self.combs.split('+')[0]]
-            x2 = mod_dict[self.combs.split('+')[1]]
-            x3 = mod_dict[self.combs.split('+')[2]]
-
-            x[0,0:len(x1)] = x1
-            x[1,0:len(x2)] = x2
-            x[2,0:len(x3)] = x3
-        
-        elif self.n_channels==4:
-
-            x1 = mod_dict[self.combs.split('+')[0]]
-            x2 = mod_dict[self.combs.split('+')[1]]
-            x3 = mod_dict[self.combs.split('+')[2]]
-            x4 = mod_dict[self.combs.split('+')[3]]
-
-            x[0,0:len(x1)] = x1
-            x[1,0:len(x2)] = x2
-            x[2,0:len(x3)] = x3
-            x[3,0:len(x4)] = x4
-        
-        elif self.n_channels==5:
-
-            x1 = mod_dict[self.combs.split('+')[0]]
-            x2 = mod_dict[self.combs.split('+')[1]]
-            x3 = mod_dict[self.combs.split('+')[2]]
-            x4 = mod_dict[self.combs.split('+')[3]]
-            x5 = mod_dict[self.combs.split('+')[4]]
-
-            x[0,0:len(x1)] = x1
-            x[1,0:len(x2)] = x2
-            x[2,0:len(x3)] = x3
-            x[3,0:len(x4)] = x4
-            x[4,0:len(x5)] = x5
-        x[0,0:len(x1)] = x1
-        x[1,0:len(x4)] = x4
-        x[2,0:len(x3)] = x3
-        x[3,0:len(x5)] = x5
-        x[4,0:len(x2)] = x2
-
-        x = np.nan_to_num(x, nan=0)
-
-        x = torch.from_numpy(x).float()
-        y = torch.zeros((self.num_class))
+        # Target label (one-hot encoded)
+        y = torch.zeros(self.num_class)
         y[int(self.y_data[index])] = 1
 
-        mask = torch.ones((1,1,1))
+        # Covariates (e.g., sex and depression)
+        covariates = torch.tensor([self.sex[index], self.depression[index]], dtype=torch.float32)
 
-        covariates = torch.ones((1,1,1))
-        #covariates =  torch.tensor([self.sex[index],self.depression[index]]).view(2)
-        hea_file_name = " "
-
-  
+        # Prepare the final sample
         sample = {
             'x': x,
-            'label':y,
-            'covariates':covariates,
-            'name': hea_file_name,
-            'mask': mask,
-            'was_changed': 0,
+            'label': y,
+            'covariates': covariates,
+            'pid': self.pid[index],
+            'date': self.time[index],
+            'mask': torch.ones((1, 1, 1)),
+            'inputs': {'x': x, 'covariates': covariates},
         }
 
         return sample
 
     def __len__(self):
+        return len(self.x_data)
 
-        return self.x_data.shape[0]
-    
+    def _get_normalized_data(self, index):
+        """
+        Helper function to retrieve and normalize data features.
+
+        Parameters:
+            index (int): Index of the sample to fetch.
+
+        Returns:
+            dict: Normalized feature data for HR, activity, RMSSD, etc.
+        """
+        data_dict = {}
+        
+        # Feature extraction and normalization (e.g., HR, activity, RMSSD, etc.)
+        data_dict['hr'] = self._normalize(self.x_data[index], min_val=33, max_val=180)[self.hour * 12:]
+        data_dict['act'] = self._normalize(self.activity_counts[index], min_val=0, max_val=1000)[self.hour * 12:]
+        data_dict['rmssd'] = self._normalize(self.RMSSD_Data[index], min_val=5, max_val=300)[self.hour * 12:]
+        data_dict['en'] = self._normalize(self.SampEn_Data[index], min_val=0, max_val=2)[self.hour * 12:]
+        data_dict['pnn50'] = self._normalize(self.pNN50_Data[index], min_val=0, max_val=100)[self.hour * 12:]
+        data_dict['rr'] = self._normalize(self.resp_rate[index], min_val=12, max_val=25)[self.hour * 12:]
+        data_dict['lfhf'] = self._normalize(np.log(self.LFHF_Data[index] + 1), min_val=2, max_val=5)[self.hour * 12:]
+        data_dict['shan'] = self._normalize(self.ShanEn_Data[index], min_val=4, max_val=6)[self.hour * 12:]
+        data_dict['hti'] = self._normalize(self.hti_Data[index], min_val=10, max_val=20)[self.hour * 12:]
+        
+        return data_dict
+
+    def _normalize(self, data, min_val, max_val):
+        """Normalize data to the range [0, 1] based on provided min and max values."""
+        return (np.asarray(data) - min_val) / (max_val - min_val)
+
+    def _build_input_tensor(self, data_dict):
+        """Build the input tensor for the model based on the available channels."""
+        x = np.zeros((self.n_channels, 288))  # Assuming the length is 288 (time steps)
+
+        for i, feature in enumerate(data_dict):
+            if self.n_channels > i:
+                x[i, :len(data_dict[feature])] = data_dict[feature]
+        
+        return torch.tensor(x, dtype=torch.float32)

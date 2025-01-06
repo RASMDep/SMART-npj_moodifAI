@@ -1,10 +1,5 @@
-
-import numpy as np
 import torch
 import torch.nn as nn
-from typing import Optional, Sequence
-from torch import Tensor
-from loss_functions.losses import AsymmetricLoss
 
 class Conv1dNet(torch.nn.Module):
 
@@ -19,7 +14,6 @@ class Conv1dNet(torch.nn.Module):
         self.n_out_class = args.num_class
         self.n_feat = args.n_covariates
 
-        #self.criterion = nn.BCEWithLogitsLoss()#pos_weight=torch.tensor([0.7]))
         self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         
         # 12 is the input space in terms of ECG leads, 16 is the output space corresponding to the new features
@@ -27,7 +21,7 @@ class Conv1dNet(torch.nn.Module):
         self.block1 = nn.Sequential(nn.Conv1d(self.in_size, 16, 5, stride=1, padding = 2),nn.ReLU(),nn.MaxPool1d(2, stride=2),nn.BatchNorm1d(16))
         self.block2 = nn.Sequential(nn.Conv1d(16, 32, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(2, stride=2), nn.BatchNorm1d(32))
         self.block3 = nn.Sequential(nn.Conv1d(32, 64, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(2, stride=2), nn.BatchNorm1d(64))
-        self.block4 = nn.Sequential(nn.Conv1d(64, 128, 5, stride=1, padding = 2), nn.ReLU(), nn.BatchNorm1d(128))# nn.MaxPool1d(2, stride=2)
+        self.block4 = nn.Sequential(nn.Conv1d(64, 128, 5, stride=1, padding = 2), nn.ReLU(), nn.MaxPool1d(2, stride=2),nn.BatchNorm1d(128))
         ## downsampling of max to this size and write the pooling 
         self.block5 = nn.Sequential(nn.Conv1d(128, 256, 5, stride=1, padding = 2), nn.ReLU())
 
@@ -39,12 +33,15 @@ class Conv1dNet(torch.nn.Module):
 
 
 
-    def forward(self, x, covariates):
+    def forward(self, inputs):
         """
         In the forward function we accept a Tensor of input data and we must return
         a Tensor of output data. We can use Modules defined in the constructor as
         well as arbitrary operators on Tensors.
         """
+
+        x = inputs["x"]
+        covariates = inputs["covariates"]
 
         z = self.block1(x)
         z = self.block2(z)

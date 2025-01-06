@@ -1,13 +1,7 @@
 # Import libraries
 import sys, argparse, os
 import numpy as np
-from numpy.core.fromnumeric import squeeze
 import torch
-from collections import defaultdict
-from sklearn.metrics.pairwise import cosine_similarity
-from scipy.spatial.distance import cosine
-
-
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 
@@ -20,7 +14,7 @@ from models import *
 if 'ipykernel' in sys.modules:
     from tqdm import tqdm_notebook as tqdm
 else:
-    from tqdm.auto import tqdm, trange
+    from tqdm.auto import tqdm
 
 parser = argparse.ArgumentParser()
 
@@ -166,38 +160,34 @@ parser.add_argument("--gamma-pos",
 parser.add_argument("--less-features",
                     default=False, action="store_true",
                     help='extra layes in ConvNet for fewer features output')
-
-
+    
 
 class DevelopingSuite(object):
     def __init__(self, args):
 
         self.args = args
         torch.manual_seed(0)
-
-        self.data_train, self.data_val, self.data_test, self.class_weights = get_data(args)
-
-        # Define torch dataloader object
-        self.train_dataloader = DataLoader(self.data_train, batch_size=args.batch_size,num_workers=args.num_workers, 
-                                           drop_last=True,shuffle=True)
-        self.val_dataloader = DataLoader(self.data_train, args.batch_size,num_workers=args.num_workers)
-
-        #args.n_covariates = 0 
-
-        # Use GPU if available
-        print('GPU devices available:', torch.cuda.device_count())
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print('GPU devices available:', torch.cuda.device_count())
         print('Using device:', self.device)
 
-        self.model = get_model(args,self.class_weights.to(self.device))
+        # Data preparation
+        self.data_train, self.data_val, self.data_test, self.class_weights = get_data(args)
+        self.train_dataloader = DataLoader(self.data_train, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True)
+        self.val_dataloader = DataLoader(self.data_val, batch_size=args.batch_size, num_workers=args.num_workers)
+
+        # Model setup
+        self.model = get_model(args, self.class_weights.to(self.device))
         self.model.to(self.device)
 
+        # Optimizer and scheduler
+        self.optimizer = self._init_optimizer()
+        self.scheduler = self._init_scheduler()
+
+        # Miscellaneous
         self.experiment_folder = args.save_dir 
 
         if args.resume is not None:
-
-            #self.resume(path=args.resume)
-
             raise NotImplemented
 
         if "train" in args.mode:
@@ -234,6 +224,21 @@ class DevelopingSuite(object):
             self.lastepoch = False
 
             self.early_stopping = EarlyStopping()  #initialize early stopping
+
+
+    def _init_optimizer(self):
+        """Initialize optimizer."""
+        if self.args.optimizer == 'adam':
+            return torch.optim.Adam(self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
+        elif self.args.optimizer == 'sgd':
+            return torch.optim.SGD(self.model.parameters(), lr=self.args.lr, momentum=self.args.momentum, weight_decay=self.args.weight_decay)
+
+    def _init_scheduler(self):
+        """Initialize learning rate scheduler."""
+        if self.args.scheduler == 'exp':
+            return torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.args.scheduler_decay_factor)
+        return None
+
 
     def train_and_eval(self):
 
@@ -278,12 +283,13 @@ class DevelopingSuite(object):
         with tqdm(self.train_dataloader, leave=False) as inner_tnr:
             for en, sample in enumerate(inner_tnr):
 
-                y = sample['label'].to(self.device)#.unsqueeze(1)
-                x = sample['x'].to(self.device)
-                cov = sample['covariates'].to(self.device)
+                y = sample['label'].to(self.device)
+                inputs = sample['inputs']
+                inputs['x'] = inputs['x'].to(self.device).float()
+                inputs['covariates'] = inputs['covariates'].to(self.device).float()
                 self.optimizer.zero_grad()
-                
-                pred_y = self.model(x,cov)
+
+                pred_y = self.model(inputs)
                 loss = self.model.loss(pred_y,y) 
 
                 # Backward pass
@@ -321,9 +327,6 @@ class DevelopingSuite(object):
                     self.writer.add_scalar('training/training loss',
                                         self.train_stats['train_loss'],
                                         self.iter)
-                    # TODO: this is not computed
-                    #  self.writer.add_scalar('training/func_eval', func_eval,
-                    #  self.iter)
         
 
     def validate(self, tnr=None, save=True):
@@ -332,18 +335,17 @@ class DevelopingSuite(object):
         total_loss = 0
         total_accuracy = 0
 
-        nclasses = self.args.num_class
-
         dataloader = self.val_dataloader
         self.model.eval()
         for sample in dataloader:
             with torch.no_grad():
-                x1 = sample["x"].to(self.device)
-                cov = sample["covariates"].to(self.device)
+                inputs = sample["inputs"]#.to(self.device)
+                inputs['x'] = inputs['x'].to(self.device).float()
+                inputs['covariates'] = inputs['covariates'].to(self.device).float()
                 y = sample["label"].to(self.device)#.unsqueeze(1)
 
-                batch_size = x1.size(0)
-                pred_y = self.model(x1, cov)
+                batch_size = inputs["x"].size(0)
+                pred_y = self.model(inputs)
                 # Add metrics of current batch
                 total_dataset_size += batch_size
                 total_loss += (self.model.loss(pred_y,y)  
@@ -377,8 +379,6 @@ class DevelopingSuite(object):
 
         return
 
-
-
     def save_model(self):
 
         torch.save(
@@ -388,7 +388,6 @@ class DevelopingSuite(object):
                 'optimizer_state_dict': self.optimizer.state_dict(),
                 'args': self.args
             }, os.path.join(self.experiment_folder, self.args.model_filename))
-        #self.args.covariates = covariates_tmp
 
     def eval_model_stats(self):
 
@@ -397,19 +396,14 @@ class DevelopingSuite(object):
 
         self.model.load_state_dict(data_model['model_state_dict'])
 
-        #evaluation
         self.model.eval()
-        nclasses = self.args.num_class
-        acc = torch.zeros(1).to(
-            self.device
-        )  # <-- changed so it the number of classes is automatic
-        pos = torch.zeros(1).to(
-            self.device)  # <-- changed so it is automatic
 
         outputs_all= torch.zeros(0).to(self.device)  # <-- changed so it is automatic
         targets_all = torch.zeros(0).to(self.device)  # <-- changed so it is automatic
         scores_all = torch.zeros(0).to(self.device)  # <-- changed so it is automatic
         gt_all = torch.zeros(0).to(self.device)  # <-- changed so it is automatic
+        pid_all = []
+        date_all = []
 
         tot = 0
 
@@ -419,24 +413,26 @@ class DevelopingSuite(object):
                                 batch_size=self.args.batch_size,
                                 num_workers=self.args.num_workers)
 
-
         with torch.no_grad():
             for sample in tqdm(self.test_dataloader):
-                x_t = sample["x"].to(self.device)
-                cov = sample["covariates"].to(self.device)
-                y = torch.argmax(sample["label"],dim=1).to(self.device)#.unsqueeze(1)
+                inputs = sample["inputs"]
+                inputs['x'] = inputs['x'].to(self.device).float()
+                inputs['covariates'] = inputs['covariates'].to(self.device).float()
                 
-                tot = tot + x_t.shape[0]
-                y_pred = self.model(x_t, cov)
-                #y_pred_binary = 0.5 * (torch.sign(torch.sigmoid(y_pred) - 0.5)
-                #                       + 1).to(self.device)
+                y = torch.argmax(sample["label"],dim=1).to(self.device)#.unsqueeze(1)
+
+                tot = tot + inputs['x'].shape[0]
+                y_pred = self.model(inputs)
+
                 y_pred_binary = torch.argmax(y_pred,dim=1)
                 outputs_all= torch.cat((outputs_all, y_pred_binary), 0)
                 targets_all = torch.cat((targets_all, y,), 0)
                 scores_all = torch.cat((scores_all, y_pred,), 0)
                 gt_all = torch.cat((gt_all, sample["label"].to(self.device),), 0)
+                pid_all.append(sample["pid"])
+                date_all.append(sample["date"])
 
-        return outputs_all,targets_all,gt_all,scores_all
+        return pid_all, date_all, outputs_all,targets_all,gt_all,scores_all
 
 
 if __name__ == '__main__':

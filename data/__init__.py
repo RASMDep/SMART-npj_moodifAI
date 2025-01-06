@@ -1,5 +1,4 @@
-import numpy as np
-import data.patch_data 
+from data import patch_data 
 
 def get_data(args,data_stats=None):
 

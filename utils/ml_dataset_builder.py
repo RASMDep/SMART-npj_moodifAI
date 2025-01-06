@@ -165,7 +165,7 @@ class DataProcessor:
                     iter += 1
 
                 # Save the dataset using pickle
-                filename = f"{'_'.join(data_used)}_timeseries_24hour_clean_{self.perc_missing}percent_classes_211223.pkl"
+                filename = f"{'_'.join(data_used)}_timeseries_24hour_clean_{self.perc_missing}percent_classes_041124.pkl"
 
                 with open(os.path.join(self.out_dir, filename), 'wb') as file:
                     pickle.dump(dataset, file)
@@ -181,12 +181,9 @@ def main(include_pilot_data=True, include_hrv =True, include_acc=True, include_g
     data_dir = "/Users/crisgallego/desktop/SMART_derived_features"
     out_dir = "/Users/crisgallego/Documents/phd/00_Data/02_SMART_STUDY"
     perc_missing = 25
-    ids_p = ['SMART_201', 'SMART_003', 'SMART_004','SMART_006', 'SMART_007','SMART_008', 'SMART_009','SMART_010', 
-            'SMART_012','SMART_015', 'SMART_016','SMART_018','SMART_024',
-            'SMART_019','SMART_020','SMART_027','SMART_028']
+    ids_p = [] # ids of depressed patient participants
 
-    ids_male = ['SMART_003','SMART_006','SMART_007','SMART_010','SMART_016','SMART_017','SMART_018','SMART_022','SMART_024',
-    'SMART_025','SMART_26','SMART_027']
+    ids_male = [] # ids of male participants
 
     # Specify questionnaire files
     questionnaire_files = [
