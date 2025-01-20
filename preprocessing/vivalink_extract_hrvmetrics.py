@@ -9,9 +9,9 @@ from tqdm import tqdm  # Import tqdm for progress bars
 parser = argparse.ArgumentParser(description="HRV Calculation Script")
 parser.add_argument("--win_len", type=int, default=5, help="Specify the window length in minutes for HRV calculation")
 parser.add_argument("--overlap", type=int, default=0, help="Specify the percentage overlap for HRV calculation")
-parser.add_argument("--data_path", default="/cluster/work/smslab/ambizione/SMART_STUDY/", help="Specify the data path")
-parser.add_argument("--output_dir", default="/cluster/work/smslab/ambizione/SMART_derived_features/", help="Specify the output directory")
-parser.add_argument("--participant_id", default="SMART_027", help="Specify the participant ID")
+parser.add_argument("--data_path", help="Specify the data path")
+parser.add_argument("--output_dir",  help="Specify the output directory")
+parser.add_argument("--participant_id", help="Specify the participant ID")
 args = parser.parse_args()
 
 

@@ -6,3 +6,6 @@ scikit-learn==1.2.2
 scipy==1.11.3
 torch==2.1.0
 tqdm==4.65.0
+neurokit2
+sensormotion
+ssqueezepy
