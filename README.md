@@ -45,17 +45,17 @@ This folder contains example data to help understand the input and output format
     | `value.time`  | Timestamp of the ECG data, represented as epoch time (milliseconds since 1970). The time is relative to the initial recording. | `1.672110e+12`          |
     | `value.ecg`   | ECG signal value recorded at a specific timestamp. This is a continuous signal, representing the heart's electrical activity. | `0.456`                |
     | `key.projectId` | Identifier for the project or study this data belongs to. | `SMART`                |
-    | `key.userId`  | Identifier for the user or participant. This is typically an anonymized ID. | `SMART_031`            |
+    | `key.userId`  | Identifier for the user or participant. This is typically an anonymized ID. | `SMART_999`            |
 
     #### Example Data
 
     | index | value.time  | value.ecg | key.projectId | key.userId |
     |-------|-------------|-----------|---------------|------------|
-    | 0     | 1.672110e+12 | 0.456     | SMART         | SMART_031  |
-    | 1     | 1.672110e+12 | 0.450     | SMART         | SMART_031  |
-    | 2     | 1.672110e+12 | 0.459     | SMART         | SMART_031  |
-    | 3     | 1.672110e+12 | 0.473     | SMART         | SMART_031  |
-    | 4     | 1.672110e+12 | 0.477     | SMART         | SMART_031  |
+    | 0     | 1.672110e+12 | 0.456     | SMART         | SMART_999  |
+    | 1     | 1.672110e+12 | 0.450     | SMART         | SMART_999  |
+    | 2     | 1.672110e+12 | 0.459     | SMART         | SMART_999  |
+    | 3     | 1.672110e+12 | 0.473     | SMART         | SMART_999  |
+    | 4     | 1.672110e+12 | 0.477     | SMART         | SMART_999  |
 
     #### File Information
 
