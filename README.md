@@ -36,9 +36,9 @@ This folder contains example data to help understand the input and output format
   [Vivalink](https://www.vivalink.com/) is a wearable ECG patch with the following features:
   -  **Single lead ECG sensors** (128 Hz)
 
-  ### # ECG Data Format
-
-    This dataset contains raw ECG data stored in a `CSV` format compressed using `gzip`. The file includes the following columns:
+    Raw ECG data are stored in a `CSV` format compressed using `gzip`. 
+    Each user/day/hour has a separte file.
+    The file includes the following columns:
 
     | Column Name   | Description                                       | Example                |
     |---------------|---------------------------------------------------|------------------------|
