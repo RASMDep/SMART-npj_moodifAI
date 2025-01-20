@@ -57,12 +57,5 @@ This folder contains example data to help understand the input and output format
     | 3     | 1.672110e+12 | 0.473     | SMART         | SMART_999  |
     | 4     | 1.672110e+12 | 0.477     | SMART         | SMART_999  |
 
-    #### File Information
-
-    - **File Format**: CSV
-    - **Compression**: gzip (`.csv.gz`)
-    - **Size**: Varies based on the length of the dataset
-    - **File Path**: `path/to/your/file.csv.gz`
-
   -  **Accelerometer sensor** (3 axis, 25 Hz - custom rate)
   - Derived  **Respiration Rate**
