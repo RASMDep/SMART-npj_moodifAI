@@ -42,7 +42,7 @@ This folder contains example data to help understand the input and output format
 
     | Column Name   | Description                                       | Example                |
     |---------------|---------------------------------------------------|------------------------|
-    | `value.time`  | Timestamp of the ECG data, represented as epoch time (milliseconds since 1970). The time is relative to the initial recording. | `1.672110e+12`          |
+    | `value.time`  | Timestamp of the ECG data, represented as epoch time (milliseconds since 1970).| `1.672110e+12`          |
     | `value.ecg`   | ECG signal value recorded at a specific timestamp. This is a continuous signal, representing the heart's electrical activity. | `0.456`                |
     | `key.projectId` | Identifier for the project or study this data belongs to. | `SMART`                |
     | `key.userId`  | Identifier for the user or participant. This is typically an anonymized ID. | `SMART_999`            |
