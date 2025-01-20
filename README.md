@@ -25,6 +25,12 @@ Deep learning experiments for psychophysiological state assessment:
 ### 3. `figures/`  
 Scripts to reproduce the figures used in the paper: 
 
+### 4. data_examples/
+
+This folder contains example data to help understand the input and output formats:
+
+    raw_data/: Includes samples of raw data from wearable devices before preprocessing.
+    derived_features/: Contains examples of time-series features generated during preprocessing.
 
 ## 💓 Wearable ECG patch data - Vivalink - used in the paper
   [Vivalink](https://www.vivalink.com/) is a wearable ECG patch with the following features:
