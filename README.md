@@ -20,6 +20,7 @@ Scripts and utilities for cleaning and preparing raw wearable patch data
 
 ### 2. `ML_experiments/`  
 Deep learning experiments for psychophysiological state assessment:  
+- **`ML_experiments/utils/ml_dataset_builder.py`**: Processes the time-series features generated during preprocessing, formats the data, and saves it as a dataset for use in experiments.
 - **`run_classification.py`**: End-to-end script for training and evaluating deep learning models.  
 
 ### 3. `figures/`  
