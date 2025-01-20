@@ -32,4 +32,3 @@ Scripts to reproduce the figures used in the paper:
   -  **Single lead ECG sensors** (128 Hz)
   -  **Accelerometer sensor** (3 axis, 25 Hz - custom rate)
   - Derived  **Respiration Rate**
-  - Derived  **Heart Rate**
