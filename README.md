@@ -1,4 +1,3 @@
-
 <h1 align="center">
 <img src="logo/moodifAI.jpg" align="left" width="200px"/>
 <b> MoodifAI: Unveiling Psychophysiological States Through AI and Wearable Data  </b>
