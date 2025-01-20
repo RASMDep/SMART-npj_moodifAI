@@ -1,7 +1,7 @@
 
 <h1 align="center">
 <img src="logo/moodifAI.jpg" align="left" width="200px"/>
-<b> MoodifAI: Unveiling Psychophysiological States Through Advanced AI  </b>
+<b> MoodifAI: Unveiling Psychophysiological States Through AI and Wearable Data  </b>
 <br clear="left"/>
 </h1><br>
 
@@ -20,7 +20,7 @@ Scripts and utilities for cleaning and preparing raw wearable patch data
 
 ### 2. `ML_experiments/`  
 Deep learning experiments for psychophysiological state assessment:  
-- **`run_model.py`**: End-to-end script for training and evaluating deep learning models.  
+- **`run_classification.py`**: End-to-end script for training and evaluating deep learning models.  
 
 ### 3. `figures/`  
 Scripts to reproduce the figures used in the paper: 
