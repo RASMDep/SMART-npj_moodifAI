@@ -25,3 +25,11 @@ Deep learning experiments for psychophysiological state assessment:
 
 ### 3. `figures/`  
 Scripts to reproduce the figures used in the paper: 
+
+
+## 💓 Wearable ECG patch data - Vivalink - used in the paper
+  [Vivalink](https://www.vivalink.com/) is a wearable ECG patch with the following features:
+  -  **Single lead ECG sensors** (128 Hz)
+  -  **Accelerometer sensor** (3 axis, 25 Hz - custom rate)
+  - Derived  **Respiration Rate**
+  - Derived  **Heart Rate**
