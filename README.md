@@ -17,6 +17,23 @@ The work is associated with the paper:
 ### 1. `preprocessing/`  
 Scripts and utilities for cleaning and preparing raw wearable patch data  
 
+To preprocess raw accelerometer data and extract derived features, use the following command:  
+
+```bash
+python preprocessing/vivalink_extract_accmetrics.py \
+  --participant_id=SMART_999 \
+  --data_path="data_examples/raw_data" \
+  --output_dir="data_examples/derived_features"
+
+likewise to extract HRV metrics
+
+```bash
+python preprocessing/vivalink_extract_hrvmetrics.py \
+  --participant_id=SMART_999 \
+  --data_path="data_examples/raw_data" \
+  --output_dir="data_examples/derived_features"
+
+
 ### 2. `ML_experiments/`  
 Deep learning experiments for psychophysiological state assessment:  
 - **`ML_experiments/utils/ml_dataset_builder.py`**: Processes the time-series features generated during preprocessing, formats the data, and saves it as a dataset for use in experiments.
@@ -34,6 +51,7 @@ This folder contains example data to help understand the input and output format
 
 ## 💓 Wearable ECG patch data - Vivalink - used in the paper
   [Vivalink](https://www.vivalink.com/) is a wearable ECG patch with the following features:
+
   -  **Single lead ECG sensors** (128 Hz)
 
     Raw ECG data are stored in a `CSV` format compressed using `gzip`. 
@@ -47,15 +65,22 @@ This folder contains example data to help understand the input and output format
     | `key.projectId` | Identifier for the project or study this data belongs to. | `SMART`                |
     | `key.userId`  | Identifier for the user or participant. This is typically an anonymized ID. | `SMART_999`            |
 
-    #### Example Data
-
-    | index | value.time  | value.ecg | key.projectId | key.userId |
-    |-------|-------------|-----------|---------------|------------|
-    | 0     | 1.672110e+12 | 0.456     | SMART         | SMART_999  |
-    | 1     | 1.672110e+12 | 0.450     | SMART         | SMART_999  |
-    | 2     | 1.672110e+12 | 0.459     | SMART         | SMART_999  |
-    | 3     | 1.672110e+12 | 0.473     | SMART         | SMART_999  |
-    | 4     | 1.672110e+12 | 0.477     | SMART         | SMART_999  |
-
+    
   -  **Accelerometer sensor** (3 axis, 25 Hz - custom rate)
+
+    Raw ACC data are stored in a `CSV` format compressed using `gzip`. 
+    Each user/day/hour has a separte file.
+    The file includes the following columns:
+
+    | Column Name   | Description                                       | Example                |
+    |---------------|---------------------------------------------------|------------------------|
+    | `value.time`  | Timestamp of the ECG data, represented as epoch time (milliseconds since 1970).| `1.672110e+12`          |
+    | `value.x`   | accelerometer readings along the X-axis  | `-461`                |
+    | `value.y`   | accelerometer readings along the Y-axis |  `1921`  |
+    | `value.z`   | accelerometer readings along the Z-axis  | `547`  |
+    | `key.projectId` | Identifier for the project or study this data belongs to. | `SMART`                |
+    | `key.userId`  | Identifier for the user or participant. This is typically an anonymized ID. | `SMART_999`            |
+
+
+
   - Derived  **Respiration Rate**
