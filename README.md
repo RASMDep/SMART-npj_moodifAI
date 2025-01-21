@@ -24,6 +24,7 @@ python preprocessing/vivalink_extract_accmetrics.py \
   --participant_id=SMART_999 \
   --data_path="data_examples/raw_data" \
   --output_dir="data_examples/derived_features"
+  ```
 
 likewise to extract HRV metrics
 
@@ -32,7 +33,7 @@ python preprocessing/vivalink_extract_hrvmetrics.py \
   --participant_id=SMART_999 \
   --data_path="data_examples/raw_data" \
   --output_dir="data_examples/derived_features"
-
+```
 
 ### 2. `ML_experiments/`  
 Deep learning experiments for psychophysiological state assessment:  
