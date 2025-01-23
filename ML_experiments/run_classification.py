@@ -6,8 +6,8 @@ import pandas as pd
 import argparse
 
 # Directories and files
-data_dir = "/home/cgallego/valence_arousal_paper"
-save_out_dir = "/home/cgallego/valence_arousal_paper/results_all"
+data_dir = "./input_dataset"
+save_out_dir = "./output"
 data_file = "HRV_ACC_RR_timeseries_24hour_clean_25percent_classes_041124.pkl"
 save_dir = './results'
 

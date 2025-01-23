@@ -4,8 +4,32 @@ import pandas as pd
 import tqdm
 import numpy as np
 import pytz
+import argparse
 
+"""
+Data Aggregation for Participant Data Analysis/ML
+=====================================================
 
+This script processes participant data for mood analysis, supporting the integration 
+of various sensor metrics (e.g., HRV, accelerometer, GPS, and respiration rate). 
+It loads data, resamples it to a specified frequency, and merges it with 
+questionnaire responses to create a comprehensive dataset.
+
+Features:
+- Supports HRV, accelerometer (ACC), GPS, and respiration rate (RR) data processing.
+- Filters data based on percentage of missing values.
+- Combines participant data with questionnaire responses.
+- Outputs cleaned and formatted datasets for further analysis.
+
+Usage:
+------
+Run the script from the terminal:
+
+   ```bash
+   python3 ml_dataset_builder.py --data_dir "/path/to/data" --out_dir "/path/to/output" \
+       --include_pilot_data False --include_hrv True --include_acc True \
+       --include_gps False --include_rr True
+"""
 class DataProcessor:
     def __init__(self, data_dir, out_dir, perc_missing, ids_p,ids_male):
         self.data_dir = data_dir
@@ -176,14 +200,9 @@ class DataProcessor:
                 continue
 
 
-def main(include_pilot_data=True, include_hrv =True, include_acc=True, include_gps=False, include_rr=True):
-    # Define data directories
-    data_dir = "/Users/crisgallego/desktop/SMART_derived_features"
-    out_dir = "/Users/crisgallego/Documents/phd/00_Data/02_SMART_STUDY"
-    perc_missing = 25
-    ids_p = [] # ids of depressed patient participants
-
-    ids_male = [] # ids of male participants
+def main(data_dir, out_dir, include_pilot_data=True, perc_missing=25, include_hrv=True, include_acc=True, include_gps=False, include_rr=True):
+    ids_p = []  # IDs of depressed participants
+    ids_male = []  # IDs of male participants
 
     # Specify questionnaire files
     questionnaire_files = [
@@ -206,8 +225,29 @@ def main(include_pilot_data=True, include_hrv =True, include_acc=True, include_g
     data_processor = DataProcessor(data_dir, out_dir, perc_missing, ids_p, ids_male)
 
     # Process participants
-    data_processor.process_participant(questionnaire_answers,include_hrv = include_hrv, include_acc=include_acc, include_gps=include_gps,include_rr=include_rr)
+    data_processor.process_participant(questionnaire_answers, include_hrv=include_hrv, include_acc=include_acc, include_gps=include_gps, include_rr=include_rr)
 
 
-# Example usage
-main(include_pilot_data=False,include_hrv=True,include_acc=True, include_gps=False,include_rr=True)  # Set to True if you want to include pilot data
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process participant data for mood analysis.")
+    parser.add_argument("--data_dir", type=str, required=True, help="Path to the data directory.")
+    parser.add_argument("--out_dir", type=str, required=True, help="Path to the output directory.")
+    parser.add_argument("--include_pilot_data", type=bool, default=False, help="Include pilot data (default: False).")
+    parser.add_argument("--perc_missing", type=int, default=25, help="Percentage of allowable missing data (default: 25).")
+    parser.add_argument("--include_hrv", type=bool, default=True, help="Include HRV data (default: True).")
+    parser.add_argument("--include_acc", type=bool, default=True, help="Include accelerometer data (default: True).")
+    parser.add_argument("--include_gps", type=bool, default=False, help="Include GPS data (default: False).")
+    parser.add_argument("--include_rr", type=bool, default=True, help="Include RR data (default: True).")
+
+    args = parser.parse_args()
+
+    main(
+        data_dir=args.data_dir,
+        out_dir=args.out_dir,
+        include_pilot_data=args.include_pilot_data,
+        perc_missing=args.perc_missing,
+        include_hrv=args.include_hrv,
+        include_acc=args.include_acc,
+        include_gps=args.include_gps,
+        include_rr=args.include_rr,
+    )
